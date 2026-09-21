@@ -1,0 +1,17 @@
+:root {
+  --color-paper: #f7f4ea;
+  --color-raised: #fffdf7;
+  --color-ink: #1f292b;
+  --color-muted: #68706c;
+  --color-rule: #a9a79a;
+  --color-moss: #5f7b55;
+  --color-moss-ink: #4f6847;
+  --color-pale: #e4eadf;
+  --color-mustard: #e9b83f;
+  --color-disabled: #d0cec3;
+  --color-danger: #a85249;
+  --color-clear: transparent;
+  --color-overlay: #1f292b66;
+  --font-display: 'Zpix', sans-serif;
+  --font-body: 'Microsoft YaHei', system-ui, sans-serif;
+}

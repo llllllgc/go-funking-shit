@@ -1,0 +1,626 @@
+// Hallmark · genre: playful · macrostructure: status-ticket · design-system: locked LaLeMa
+// Hallmark · pre-emit critique: P5 H4 E4 S5 R5 V4
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+import '../application/bowel_log_controller.dart';
+import '../core/formatters.dart';
+import '../core/theme/app_colors.dart';
+import '../core/theme/app_theme.dart';
+import '../data/knowledge_base.dart';
+import '../domain/bowel_record.dart';
+import '../domain/bristol_type.dart';
+import '../widgets/pressable.dart';
+import '../widgets/calendar_button.dart';
+import '../widgets/knowledge_preview_card.dart';
+import '../widgets/ticket_bottom_bar.dart';
+
+class TodayScreen extends StatelessWidget {
+  const TodayScreen({
+    required this.controller,
+    required this.onRecord,
+    required this.onHistory,
+    required this.onEdit,
+    required this.onCalendar,
+    required this.onKnowledge,
+    super.key,
+  });
+
+  final BowelLogController controller;
+  final VoidCallback onRecord;
+  final VoidCallback onHistory;
+  final ValueChanged<String> onEdit;
+  final ValueChanged<DateTime> onCalendar;
+  final VoidCallback onKnowledge;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.paper,
+      body: SafeArea(
+        bottom: false,
+        child: AnimatedBuilder(
+          animation: controller,
+          builder: (context, _) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final narrow = constraints.maxWidth < 350;
+                final compact = constraints.maxHeight < 780 || narrow;
+                final padding = narrow ? 20.0 : 24.0;
+                return Stack(
+                  children: <Widget>[
+                    Positioned.fill(
+                      bottom: ticketBottomBarHeight,
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.fromLTRB(
+                          padding,
+                          compact ? 12 : 20,
+                          padding,
+                          24,
+                        ),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight:
+                                (constraints.maxHeight -
+                                        ticketBottomBarHeight -
+                                        (compact ? 36 : 44))
+                                    .clamp(0, double.infinity),
+                          ),
+                          child: _TodayContent(
+                            controller: controller,
+                            narrow: narrow,
+                            compact: compact,
+                            onEdit: onEdit,
+                            onCalendar: onCalendar,
+                            onKnowledge: onKnowledge,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: TicketBottomBar(
+                        selectedTab: TicketTab.today,
+                        onToday: () {},
+                        onRecord: onRecord,
+                        onHistory: onHistory,
+                        recordEnabled: !controller.isWorking,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayContent extends StatelessWidget {
+  const _TodayContent({
+    required this.controller,
+    required this.narrow,
+    required this.compact,
+    required this.onEdit,
+    required this.onCalendar,
+    required this.onKnowledge,
+  });
+
+  final BowelLogController controller;
+  final bool narrow;
+  final bool compact;
+  final ValueChanged<String> onEdit;
+  final ValueChanged<DateTime> onCalendar;
+  final VoidCallback onKnowledge;
+
+  @override
+  Widget build(BuildContext context) {
+    final latest = controller.latestTodayRecord;
+    final status = controller.errorMessage ?? controller.feedbackMessage;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const _Wordmark(),
+        SizedBox(height: compact ? 28 : 56),
+        Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: Text(
+            '今天',
+            style: pixelStyle(size: compact ? 28 : 34, height: 1.18),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              Text(
+                controller.isLoading
+                    ? '—'
+                    : controller.todayRecordCount.toString(),
+                style: pixelStyle(
+                  size: compact ? 88 : 112,
+                  height: compact ? 96 / 88 : 120 / 112,
+                  color: AppColors.moss,
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.only(left: 12, bottom: compact ? 8 : 12),
+                child: Text(
+                  '次',
+                  style: pixelStyle(size: compact ? 32 : 40, height: 1.25),
+                ),
+              ),
+              SizedBox(width: narrow ? 16 : 32),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final preferredSize = narrow ? 100.0 : 136.0;
+                      final size = math.min(
+                        preferredSize,
+                        math.max(0.0, constraints.maxWidth - 2),
+                      );
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 2, bottom: 2),
+                        child: Image.asset(
+                          _spiritAsset(controller),
+                          width: size,
+                          height: size,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.none,
+                          excludeFromSemantics: true,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        _LatestRecordLine(record: latest, stacked: narrow),
+        if (latest != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Row(
+              children: <Widget>[
+                _InlineAction(
+                  label: '修改',
+                  icon: 'assets/icons/ic_ticket_edit.svg',
+                  enabled: !controller.isWorking,
+                  onPressed: () => onEdit(latest.recordId),
+                ),
+                const SizedBox(width: 20),
+                _InlineAction(
+                  label: '撤销',
+                  icon: 'assets/icons/ic_ticket_undo.svg',
+                  enabled: !controller.isWorking,
+                  onPressed: () => controller.undo(latest.recordId),
+                ),
+              ],
+            ),
+          ),
+        if (status != null)
+          Semantics(
+            liveRegion: true,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                status,
+                style: TextStyle(
+                  color: controller.errorMessage != null
+                      ? AppColors.danger
+                      : AppColors.mossInk,
+                  fontSize: 12,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ),
+        SizedBox(height: compact ? 20 : 28),
+        KnowledgePreviewCard(
+          tip: KnowledgeBase.featuredFor(latest?.bristolType),
+          onPressed: onKnowledge,
+        ),
+        SizedBox(height: compact ? 24 : 40),
+        const Divider(height: 1, thickness: 1, color: AppColors.rule),
+        SizedBox(height: compact ? 20 : 32),
+        _SevenDayTicket(
+          days: controller.lastSevenDays,
+          today: controller.currentDate,
+          onCalendar: onCalendar,
+        ),
+        SizedBox(height: compact ? 24 : 36),
+        const SizedBox(
+          width: double.infinity,
+          child: Text(
+            '点一下，记一笔',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.inkMuted,
+              fontSize: 16,
+              height: 1.5,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _spiritAsset(BowelLogController controller) {
+    if (controller.isLoading) {
+      return 'assets/images/toilet_paper_spirit_normal.png';
+    }
+    return switch (controller.latestTodayRecord?.bristolType) {
+      4 => 'assets/images/toilet_paper_spirit_happy.png',
+      7 => 'assets/images/toilet_paper_spirit_sad.png',
+      _ => 'assets/images/toilet_paper_spirit_normal.png',
+    };
+  }
+}
+
+class _Wordmark extends StatelessWidget {
+  const _Wordmark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(
+        children: <InlineSpan>[
+          const TextSpan(text: '拉了么'),
+          TextSpan(
+            text: '？',
+            style: pixelStyle(size: 40, height: 1.2, color: AppColors.moss),
+          ),
+        ],
+      ),
+      style: pixelStyle(size: 40, height: 1.2),
+    );
+  }
+}
+
+class _LatestRecordLine extends StatelessWidget {
+  const _LatestRecordLine({required this.record, required this.stacked});
+
+  final BowelRecord? record;
+  final bool stacked;
+
+  @override
+  Widget build(BuildContext context) {
+    final type = record == null ? null : bristolTypeFor(record!.bristolType);
+    final text = record == null || type == null
+        ? '最近一次　—'
+        : stacked
+        ? '最近一次\n${formatTime(record!.recordedAt)} · ${type.code}　${type.label}'
+        : '最近一次　${formatTime(record!.recordedAt)} · ${type.code}　${type.label}';
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        text,
+        style: const TextStyle(color: AppColors.ink, fontSize: 16, height: 1.5),
+      ),
+    );
+  }
+}
+
+class _InlineAction extends StatelessWidget {
+  const _InlineAction({
+    required this.label,
+    required this.icon,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final String label;
+  final String icon;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = enabled ? AppColors.inkMuted : AppColors.rule;
+    return Pressable(
+      semanticLabel: label,
+      enabled: enabled,
+      onPressed: onPressed,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 72, minHeight: 48),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const SizedBox(width: 4),
+            SvgPicture.asset(
+              icon,
+              width: 19,
+              height: 19,
+              colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              maxLines: 1,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                height: 1.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SevenDayTicket extends StatelessWidget {
+  const _SevenDayTicket({
+    required this.days,
+    required this.today,
+    required this.onCalendar,
+  });
+
+  final List<LogDaySummary> days;
+  final DateTime today;
+  final ValueChanged<DateTime> onCalendar;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = days.fold<int>(0, (sum, day) => sum + day.recordCount);
+    return Column(
+      children: <Widget>[
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            Text('近 7 天', style: pixelStyle(size: 20, height: 1.3)),
+            Row(
+              children: [
+                Text(
+                  '共 $total 次',
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
+                ),
+                CalendarButton(onPressed: () => onCalendar(today)),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: days
+              .map(
+                (day) => Expanded(
+                  child: Pressable(
+                    key: ValueKey('week-day-${day.date.toIso8601String()}'),
+                    semanticLabel: '${formatHistoryDate(day.date)}，查看这一天的记录',
+                    onPressed: () => onCalendar(day.date),
+                    child: _DayMark(
+                      day: day,
+                      isToday: isSameDate(day.date, today),
+                    ),
+                  ),
+                ),
+              )
+              .toList(growable: false),
+        ),
+      ],
+    );
+  }
+}
+
+class _DayMark extends StatelessWidget {
+  const _DayMark({required this.day, required this.isToday});
+
+  final LogDaySummary day;
+  final bool isToday;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = weekdayLabels[day.date.weekday - 1];
+    return Semantics(
+      label:
+          '${formatHistoryDate(day.date)}${isToday ? '，今天' : ''}，${day.recordCount} 次记录',
+      child: ExcludeSemantics(
+        child: Column(
+          children: <Widget>[
+            Text(
+              isToday ? '今' : label,
+              style: TextStyle(
+                color: isToday ? AppColors.mossInk : AppColors.ink,
+                fontSize: 14,
+                height: 20 / 14,
+                fontWeight: isToday ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+            const SizedBox(height: 12),
+            CustomPaint(
+              size: const Size(28, 44),
+              painter: _PaperRollDayPainter(
+                hasRecord: day.hasRecord,
+                isToday: isToday,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              day.hasRecord ? '${day.recordCount}次' : '—',
+              maxLines: 1,
+              style: TextStyle(
+                color: day.hasRecord ? AppColors.mossInk : AppColors.inkMuted,
+                fontSize: 12,
+                height: 1.5,
+                fontWeight: day.hasRecord ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Fine pixel steps preserve the elliptical rim and rounded cylinder silhouette.
+class _PaperRollDayPainter extends CustomPainter {
+  const _PaperRollDayPainter({required this.hasRecord, required this.isToday});
+
+  final bool hasRecord;
+  final bool isToday;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 36, size.height / 44);
+    final outline = Paint()
+      ..color = hasRecord ? AppColors.moss : AppColors.rule
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeJoin = StrokeJoin.miter
+      ..isAntiAlias = false;
+    final cream = Paint()
+      ..color = AppColors.paperRaised
+      ..isAntiAlias = false;
+    final accent = Paint()
+      ..color = AppColors.mossPale
+      ..isAntiAlias = false;
+
+    if (hasRecord) {
+      final sheet = Path()
+        ..moveTo(24, 17)
+        ..lineTo(30, 17)
+        ..lineTo(30, 19)
+        ..lineTo(32, 19)
+        ..lineTo(32, 21)
+        ..lineTo(34, 21)
+        ..lineTo(34, 40)
+        ..lineTo(30, 40)
+        ..lineTo(30, 41)
+        ..lineTo(26, 41)
+        ..lineTo(26, 39)
+        ..lineTo(22, 39)
+        ..lineTo(22, 28)
+        ..close();
+      canvas.drawPath(sheet, cream);
+      canvas.drawPath(sheet, outline);
+      canvas.drawRect(const Rect.fromLTWH(31, 24, 2, 12), accent);
+    }
+
+    final body = Path()
+      ..moveTo(4, 15)
+      ..lineTo(4, 31)
+      ..lineTo(6, 31)
+      ..lineTo(6, 33)
+      ..lineTo(10, 33)
+      ..lineTo(10, 35)
+      ..lineTo(24, 35)
+      ..lineTo(24, 33)
+      ..lineTo(28, 33)
+      ..lineTo(28, 31)
+      ..lineTo(30, 31)
+      ..lineTo(30, 15)
+      ..close();
+    canvas.drawPath(body, cream);
+    if (hasRecord) {
+      final side = Path()
+        ..moveTo(26, 18)
+        ..lineTo(29, 18)
+        ..lineTo(29, 30)
+        ..lineTo(27, 30)
+        ..lineTo(27, 32)
+        ..lineTo(23, 32)
+        ..lineTo(23, 34)
+        ..lineTo(21, 34)
+        ..lineTo(21, 32)
+        ..lineTo(24, 32)
+        ..lineTo(24, 30)
+        ..lineTo(26, 30)
+        ..close();
+      canvas.drawPath(side, accent);
+    }
+    canvas.drawPath(body, outline);
+    final rim = Path()
+      ..moveTo(10, 9)
+      ..lineTo(24, 9)
+      ..lineTo(24, 11)
+      ..lineTo(28, 11)
+      ..lineTo(28, 13)
+      ..lineTo(30, 13)
+      ..lineTo(30, 17)
+      ..lineTo(28, 17)
+      ..lineTo(28, 19)
+      ..lineTo(24, 19)
+      ..lineTo(24, 21)
+      ..lineTo(10, 21)
+      ..lineTo(10, 19)
+      ..lineTo(6, 19)
+      ..lineTo(6, 17)
+      ..lineTo(4, 17)
+      ..lineTo(4, 13)
+      ..lineTo(6, 13)
+      ..lineTo(6, 11)
+      ..lineTo(10, 11)
+      ..close();
+    canvas.drawPath(rim, cream);
+    canvas.drawPath(rim, outline);
+    final core = Path()
+      ..moveTo(14, 13)
+      ..lineTo(20, 13)
+      ..lineTo(20, 14)
+      ..lineTo(22, 14)
+      ..lineTo(22, 16)
+      ..lineTo(20, 16)
+      ..lineTo(20, 17)
+      ..lineTo(14, 17)
+      ..lineTo(14, 16)
+      ..lineTo(12, 16)
+      ..lineTo(12, 14)
+      ..lineTo(14, 14)
+      ..close();
+    canvas.drawPath(
+      core,
+      Paint()
+        ..color = hasRecord ? AppColors.mossPale : AppColors.paper
+        ..isAntiAlias = false,
+    );
+    canvas.drawPath(
+      core,
+      Paint()
+        ..color = outline.color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..strokeJoin = StrokeJoin.miter
+        ..isAntiAlias = false,
+    );
+
+    final face = Paint()
+      ..color = hasRecord ? AppColors.mossInk : AppColors.inkMuted
+      ..isAntiAlias = false;
+    canvas.drawRect(const Rect.fromLTWH(11, 25, 2, 3), face);
+    canvas.drawRect(const Rect.fromLTWH(21, 25, 2, 3), face);
+    canvas.drawRect(const Rect.fromLTWH(14, 29, 1, 1), face);
+    canvas.drawRect(const Rect.fromLTWH(15, 30, 4, 1), face);
+    canvas.drawRect(const Rect.fromLTWH(19, 29, 1, 1), face);
+
+    if (isToday) {
+      final leaf = Paint()
+        ..color = AppColors.moss
+        ..isAntiAlias = false;
+      canvas.drawRect(const Rect.fromLTWH(22, 6, 2, 4), leaf);
+      canvas.drawRect(const Rect.fromLTWH(24, 4, 4, 4), leaf);
+      canvas.drawRect(const Rect.fromLTWH(26, 2, 4, 4), leaf);
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_PaperRollDayPainter oldDelegate) =>
+      oldDelegate.hasRecord != hasRecord || oldDelegate.isToday != isToday;
+}
