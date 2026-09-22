@@ -128,6 +128,9 @@ class _CaptureRepository implements BowelRecordRepository {
   Future<void> delete(String recordId) => throw UnimplementedError();
 
   @override
+  Future<void> restore(BowelRecord record) => throw UnimplementedError();
+
+  @override
   Future<List<BowelRecord>> loadAll() async => List<BowelRecord>.of(_records);
 
   @override

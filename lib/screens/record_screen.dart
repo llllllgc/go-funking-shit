@@ -47,13 +47,24 @@ class _RecordScreenState extends State<RecordScreen> {
 
   void _setDate(DateTime date) {
     widget.controller.clearFeedback();
+    final now = widget.controller.now;
+    var hour = _recordedAt.hour;
+    var minute = _recordedAt.minute;
+    // A date picker changes only the calendar date. If the previous time is
+    // later than the current time and the new date is today, clamp it now so
+    // the form never displays an impossible future occurrence.
+    if (isSameDate(date, now) &&
+        DateTime(date.year, date.month, date.day, hour, minute).isAfter(now)) {
+      hour = now.hour;
+      minute = now.minute;
+    }
     setState(
       () => _recordedAt = DateTime(
         date.year,
         date.month,
         date.day,
-        _recordedAt.hour,
-        _recordedAt.minute,
+        hour,
+        minute,
       ),
     );
   }
@@ -89,13 +100,27 @@ class _RecordScreenState extends State<RecordScreen> {
     );
     if (picked != null && mounted) {
       widget.controller.clearFeedback();
+      var hour = picked.hour;
+      var minute = picked.minute;
+      final now = widget.controller.now;
+      if (isSameDate(_recordedAt, now) &&
+          DateTime(
+            _recordedAt.year,
+            _recordedAt.month,
+            _recordedAt.day,
+            hour,
+            minute,
+          ).isAfter(now)) {
+        hour = now.hour;
+        minute = now.minute;
+      }
       setState(
         () => _recordedAt = DateTime(
           _recordedAt.year,
           _recordedAt.month,
           _recordedAt.day,
-          picked.hour,
-          picked.minute,
+          hour,
+          minute,
         ),
       );
     }

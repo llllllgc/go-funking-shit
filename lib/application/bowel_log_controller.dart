@@ -26,6 +26,7 @@ class BowelLogController extends ChangeNotifier {
   bool _isWorking = false;
   String? _feedbackMessage;
   String? _errorMessage;
+  final Map<String, BowelRecord> _deletedRecords = <String, BowelRecord>{};
 
   List<BowelRecord> get records => List<BowelRecord>.unmodifiable(_records);
   DateTime get currentDate => _currentDate;
@@ -34,6 +35,12 @@ class BowelLogController extends ChangeNotifier {
   bool get isWorking => _isWorking;
   String? get feedbackMessage => _feedbackMessage;
   String? get errorMessage => _errorMessage;
+
+  /// Returns a deleted record while its undo action is still available.
+  ///
+  /// The controller keeps the complete record in memory so a restore can
+  /// preserve its original id, occurrence time, and update timestamp.
+  BowelRecord? deletedRecord(String recordId) => _deletedRecords[recordId];
 
   List<BowelRecord> get todayRecords => _records
       .where((record) => isSameDate(record.recordedAt, _currentDate))
@@ -158,25 +165,72 @@ class BowelLogController extends ChangeNotifier {
     }
   }
 
-  Future<void> undo(String recordId) =>
-      _delete(recordId, successMessage: '已撤销', failureMessage: '没有撤销成功，请再试一次');
+  Future<void> undo(String recordId) async {
+    // This is the existing quick action on the home screen: remove the
+    // latest record. A separate restoreRecord method handles undoing a
+    // deletion from a snackbar or other transient UI affordance.
+    await _delete(
+      recordId,
+      successMessage: '已撤销',
+      failureMessage: '没有撤销成功，请再试一次',
+    );
+  }
 
-  Future<void> deleteRecord(String recordId) =>
+  Future<BowelRecord?> deleteRecord(String recordId) =>
       _delete(recordId, successMessage: '已删除', failureMessage: '没有删除成功，请再试一次');
 
-  Future<void> _delete(
+  /// Restores a record deleted through [deleteRecord] or [undo].
+  ///
+  /// Returning a bool lets transient UI actions quietly disappear when the
+  /// short undo window has expired or a restore has already been attempted.
+  Future<bool> restoreRecord(String recordId) async {
+    if (_isWorking || recordId.trim().isEmpty) return false;
+    final deleted = _deletedRecords[recordId];
+    if (deleted == null) return false;
+    _beginAction();
+    try {
+      await _repository.restore(deleted);
+      _deletedRecords.remove(recordId);
+      _records = <BowelRecord>[..._records, deleted];
+      _sortRecords();
+      _feedbackMessage = '已恢复';
+      return true;
+    } catch (_) {
+      _errorMessage = '没有恢复成功，请再试一次';
+      return false;
+    } finally {
+      _endAction();
+    }
+  }
+
+  Future<BowelRecord?> _delete(
     String recordId, {
     required String successMessage,
     required String failureMessage,
   }) async {
-    if (_isWorking || recordId.trim().isEmpty) return;
+    if (_isWorking || recordId.trim().isEmpty) return null;
+    final deleted = record(recordId);
+    if (deleted == null) {
+      _errorMessage = failureMessage;
+      notifyListeners();
+      return null;
+    }
     _beginAction();
     try {
       await _repository.delete(recordId);
-      await _reload();
+      // The delete has already been committed when repository.delete
+      // resolves. Updating the in-memory snapshot directly avoids turning a
+      // successful deletion into a misleading failure if a follow-up read is
+      // temporarily unavailable.
+      _records = _records
+          .where((record) => record.recordId != recordId)
+          .toList(growable: false);
+      _deletedRecords[recordId] = deleted;
       _feedbackMessage = successMessage;
+      return deleted;
     } catch (_) {
       _errorMessage = failureMessage;
+      return null;
     } finally {
       _endAction();
     }

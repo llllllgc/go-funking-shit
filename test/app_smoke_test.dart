@@ -34,6 +34,9 @@ class _EmptyRepository implements BowelRecordRepository {
   Future<void> delete(String recordId) => throw UnimplementedError();
 
   @override
+  Future<void> restore(BowelRecord record) => throw UnimplementedError();
+
+  @override
   Future<List<BowelRecord>> loadAll() async => const <BowelRecord>[];
 
   @override

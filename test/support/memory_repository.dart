@@ -57,4 +57,12 @@ class MemoryRepository implements BowelRecordRepository {
   Future<void> delete(String recordId) async {
     records.removeWhere((record) => record.recordId == recordId);
   }
+
+  @override
+  Future<void> restore(BowelRecord record) async {
+    if (records.any((item) => item.recordId == record.recordId)) {
+      throw StateError('Record already exists');
+    }
+    records.add(record);
+  }
 }

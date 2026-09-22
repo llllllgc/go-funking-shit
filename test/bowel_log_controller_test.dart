@@ -27,6 +27,38 @@ void main() {
     expect(controller.feedbackMessage, '已删除');
   });
 
+  test('delete remains successful when a follow-up read fails', () async {
+    final repository = _MemoryRepository(now);
+    final controller = BowelLogController(repository, now: () => now);
+    await controller.initialize();
+    expect(await controller.saveType(4), isTrue);
+    final recordId = controller.records.single.recordId;
+
+    repository.failReads = true;
+    final deleted = await controller.deleteRecord(recordId);
+
+    expect(deleted?.recordId, recordId);
+    expect(controller.records, isEmpty);
+    expect(controller.feedbackMessage, '已删除');
+    expect(controller.errorMessage, isNull);
+  });
+
+  test('deleted records can be restored with their original identity', () async {
+    final repository = _MemoryRepository(now);
+    final controller = BowelLogController(repository, now: () => now);
+    await controller.initialize();
+    final occurredAt = now.subtract(const Duration(hours: 2));
+    await controller.saveType(3, recordedAt: occurredAt);
+    final deleted = controller.records.single;
+
+    await controller.deleteRecord(deleted.recordId);
+    expect(controller.records, isEmpty);
+    expect(await controller.restoreRecord(deleted.recordId), isTrue);
+    expect(controller.records.single.recordId, deleted.recordId);
+    expect(controller.records.single.recordedAt, occurredAt);
+    expect(controller.feedbackMessage, '已恢复');
+  });
+
   test('builds seven consecutive day summaries', () async {
     final repository = _MemoryRepository(now)
       ..records.addAll(<BowelRecord>[
@@ -58,6 +90,7 @@ class _MemoryRepository implements BowelRecordRepository {
 
   final DateTime now;
   final List<BowelRecord> records = <BowelRecord>[];
+  bool failReads = false;
   int _nextId = 0;
 
   @override
@@ -77,7 +110,10 @@ class _MemoryRepository implements BowelRecordRepository {
   }
 
   @override
-  Future<List<BowelRecord>> loadAll() async => List<BowelRecord>.of(records);
+  Future<List<BowelRecord>> loadAll() async {
+    if (failReads) throw StateError('Read failed');
+    return List<BowelRecord>.of(records);
+  }
 
   @override
   Future<void> updateType(
@@ -93,5 +129,13 @@ class _MemoryRepository implements BowelRecordRepository {
       recordedAt: recordedAt ?? old.recordedAt,
       updatedAt: now,
     );
+  }
+
+  @override
+  Future<void> restore(BowelRecord record) async {
+    if (records.any((item) => item.recordId == record.recordId)) {
+      throw StateError('Record already exists');
+    }
+    records.add(record);
   }
 }
