@@ -200,6 +200,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(RecordScreen), findsNothing);
     expect(controller.todayRecordCount, 1);
+    expect(find.text('已保存 14:32'), findsOneWidget);
   });
 
   testWidgets('history deletion offers an undo action', (tester) async {

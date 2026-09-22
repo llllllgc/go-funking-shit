@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'application/bowel_log_controller.dart';
+import 'core/formatters.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'screens/history_screen.dart';
@@ -72,7 +73,7 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
     DateTime? initialDate,
   }) async {
     widget.controller.clearFeedback();
-    return Navigator.of(context).push<DateTime>(
+    final savedAt = await Navigator.of(context).push<DateTime>(
       MaterialPageRoute<DateTime>(
         builder: (_) => RecordScreen(
           controller: widget.controller,
@@ -81,6 +82,14 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
         ),
       ),
     );
+    if (savedAt != null && mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text('已保存 ${formatTime(savedAt)}')),
+        );
+    }
+    return savedAt;
   }
 
   Future<void> _openCalendar(DateTime date) async {
