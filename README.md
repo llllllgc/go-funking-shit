@@ -61,4 +61,4 @@ flutter build apk --debug
 
 当前 Codex Windows 环境中的 `flutter analyze` LSP 通道会解析失败，因此使用等价的 `dart analyze` 完成静态分析。
 
-当前版本：`1.2.0+3`。交互草图位于 `tool/prototypes/`，用于设计留档，不会打包进 App。真实 Flutter 页面截图位于 `tool/captures/`，使用虚构演示记录。
+当前版本：`1.3.0+4`。交互草图位于 `tool/prototypes/`，用于设计留档，不会打包进 App。真实 Flutter 页面截图位于 `tool/captures/`，使用虚构演示记录。
