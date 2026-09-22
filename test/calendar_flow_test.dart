@@ -203,6 +203,47 @@ void main() {
     expect(find.text('已保存 14:32'), findsOneWidget);
   });
 
+  testWidgets('repeats the latest type without reopening the record flow', (
+    tester,
+  ) async {
+    await launch(tester);
+    await tester.tap(find.text('记录'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('光滑柔软'));
+    await tester.tap(find.text('光滑柔软'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('再记一次 04'), findsOneWidget);
+    await tester.tap(find.text('再记一次 04'));
+    await tester.pumpAndSettle();
+    expect(controller.todayRecordCount, 2);
+    expect(find.text('已按 04 记录'), findsOneWidget);
+  });
+
+  testWidgets('trend summary switches from seven to thirty days', (
+    tester,
+  ) async {
+    await launch(tester);
+    expect(find.text('近7天 · 仅回顾已记录的内容'), findsOneWidget);
+    await tester.ensureVisible(find.text('30天'));
+    await tester.tap(find.text('30天'));
+    await tester.pumpAndSettle();
+    expect(find.text('近30天 · 仅回顾已记录的内容'), findsOneWidget);
+  });
+
+  testWidgets('recording page explains Bristol types on demand', (tester) async {
+    await launch(tester);
+    await tester.tap(find.text('记录'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('bristol-guide')));
+    await tester.pumpAndSettle();
+    expect(find.text('Bristol 形态说明'), findsOneWidget);
+    expect(
+      find.text('只按外观选最接近的一项即可。这里是自我记录工具，不用于诊断。'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('history deletion offers an undo action', (tester) async {
     await launch(tester);
     await tester.tap(find.text('记录'));

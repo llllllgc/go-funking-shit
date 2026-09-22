@@ -76,6 +76,26 @@ void main() {
     expect(days[5].recordCount, 1);
     expect(days.fold<int>(0, (sum, day) => sum + day.recordCount), 3);
   });
+
+  test('builds a thirty day window ending on the current day', () async {
+    final repository = _MemoryRepository(now)
+      ..records.add(_record('today', 4, now))
+      ..records.add(
+        _record('month-start', 5, now.subtract(const Duration(days: 29))),
+      )
+      ..records.add(
+        _record('outside-window', 6, now.subtract(const Duration(days: 30))),
+      );
+    final controller = BowelLogController(repository, now: () => now);
+    await controller.initialize();
+
+    final days = controller.lastThirtyDays;
+    expect(days, hasLength(30));
+    expect(days.first.date, DateTime(2026, 8, 18));
+    expect(days.first.recordCount, 1);
+    expect(days.last.recordCount, 1);
+    expect(days.fold<int>(0, (sum, day) => sum + day.recordCount), 2);
+  });
 }
 
 BowelRecord _record(String id, int type, DateTime time) => BowelRecord(

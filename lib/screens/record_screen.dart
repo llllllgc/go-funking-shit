@@ -126,6 +126,46 @@ class _RecordScreenState extends State<RecordScreen> {
     }
   }
 
+  Future<void> _showBristolGuide() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.paper,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        final height = MediaQuery.sizeOf(context).height;
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: height * .78),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text('Bristol 形态说明', style: pixelStyle(size: 22, height: 1.3)),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '只按外观选最接近的一项即可。这里是自我记录工具，不用于诊断。',
+                    style: TextStyle(
+                      color: AppColors.inkMuted,
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  for (final type in bristolTypes) ...<Widget>[
+                    _GuideRow(type: type),
+                    const SizedBox(height: 6),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _save(int type) async {
     if (widget.controller.isWorking) return;
     final saved = await widget.controller.saveType(
@@ -252,13 +292,44 @@ class _RecordScreenState extends State<RecordScreen> {
                       Text('更接近哪一种？', style: pixelStyle(size: 28, height: 1.3)),
                       Padding(
                         padding: const EdgeInsets.only(top: 8, bottom: 16),
-                        child: Text(
-                          _explicitSave ? '选好形态后，确认保存到这一天' : '点选后立即记下，可随时修改',
-                          style: const TextStyle(
-                            color: AppColors.inkMuted,
-                            fontSize: 14,
-                            height: 1.5,
-                          ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Expanded(
+                              child: Text(
+                                _explicitSave
+                                    ? '选好形态后，确认保存到这一天'
+                                    : '点选后立即记下，可随时修改',
+                                style: const TextStyle(
+                                  color: AppColors.inkMuted,
+                                  fontSize: 14,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Pressable(
+                              key: const Key('bristol-guide'),
+                              semanticLabel: '查看 Bristol 形态说明',
+                              enabled: !controller.isWorking,
+                              onPressed: _showBristolGuide,
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 4,
+                                ),
+                                child: Text(
+                                  '怎么看？',
+                                  style: TextStyle(
+                                    color: AppColors.mossInk,
+                                    fontSize: 12,
+                                    height: 1.5,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       for (final type in bristolTypes) ...[
@@ -381,6 +452,38 @@ class _DateShortcut extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _GuideRow extends StatelessWidget {
+  const _GuideRow({required this.type});
+
+  final BristolType type;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 54),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: const BoxDecoration(
+        color: AppColors.paperRaised,
+        border: Border.fromBorderSide(BorderSide(color: AppColors.rule)),
+      ),
+      child: Row(
+        children: <Widget>[
+          Text(type.code, style: pixelStyle(size: 16, height: 1.3)),
+          const SizedBox(width: 10),
+          SvgPicture.asset(type.assetPath, width: 34, height: 34),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              type.label,
+              style: const TextStyle(fontSize: 14, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _DateField extends StatelessWidget {

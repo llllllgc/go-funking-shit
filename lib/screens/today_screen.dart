@@ -127,6 +127,7 @@ class _TodayContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final latest = controller.latestTodayRecord;
+    final recent = controller.records.isEmpty ? null : controller.records.first;
     final status = controller.errorMessage ?? controller.feedbackMessage;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,31 +193,41 @@ class _TodayContent extends StatelessWidget {
           ),
         ),
         _LatestRecordLine(record: latest, stacked: narrow),
-        if (latest != null)
+        if (latest != null || recent != null)
           Padding(
             padding: const EdgeInsets.only(top: 12),
-            child: Row(
+            child: Wrap(
+              spacing: 20,
+              runSpacing: 2,
               children: <Widget>[
-                _InlineAction(
-                  label: '修改',
-                  icon: 'assets/icons/ic_ticket_edit.svg',
-                  enabled: !controller.isWorking,
-                  onPressed: () => onEdit(latest.recordId),
-                ),
-                const SizedBox(width: 20),
-                _InlineAction(
-                  label: '撤销',
-                  icon: 'assets/icons/ic_ticket_undo.svg',
-                  enabled: !controller.isWorking,
-                  onPressed: () async {
-                    final deleted = await controller.deleteRecord(
-                      latest.recordId,
-                    );
-                    if (deleted != null && context.mounted) {
-                      showRecordUndoSnackBar(context, controller, deleted);
-                    }
-                  },
-                ),
+                if (latest != null)
+                  _InlineAction(
+                    label: '修改',
+                    icon: 'assets/icons/ic_ticket_edit.svg',
+                    enabled: !controller.isWorking,
+                    onPressed: () => onEdit(latest.recordId),
+                  ),
+                if (latest != null)
+                  _InlineAction(
+                    label: '撤销',
+                    icon: 'assets/icons/ic_ticket_undo.svg',
+                    enabled: !controller.isWorking,
+                    onPressed: () async {
+                      final deleted = await controller.deleteRecord(
+                        latest.recordId,
+                      );
+                      if (deleted != null && context.mounted) {
+                        showRecordUndoSnackBar(context, controller, deleted);
+                      }
+                    },
+                  ),
+                if (recent != null)
+                  _InlineAction(
+                    label: '再记一次 ${bristolTypeFor(recent.bristolType)?.code ?? ''}',
+                    icon: 'assets/icons/ic_ticket_note.svg',
+                    enabled: !controller.isWorking,
+                    onPressed: () => _repeatLatest(context, recent),
+                  ),
               ],
             ),
           ),
@@ -258,7 +269,10 @@ class _TodayContent extends StatelessWidget {
           onCalendar: onCalendar,
         ),
         const SizedBox(height: 16),
-        _SevenDayInsight(days: controller.lastSevenDays),
+        _TrendInsight(
+          records: controller.records,
+          today: controller.currentDate,
+        ),
         SizedBox(height: compact ? 24 : 36),
         const SizedBox(
           width: double.infinity,
@@ -286,37 +300,214 @@ class _TodayContent extends StatelessWidget {
       _ => 'assets/images/toilet_paper_spirit_normal.png',
     };
   }
+
+  Future<void> _repeatLatest(BuildContext context, BowelRecord record) async {
+    final type = bristolTypeFor(record.bristolType);
+    final saved = await controller.saveType(record.bristolType);
+    if (!saved || !context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('已按 ${type?.code ?? record.bristolType} 记录'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+  }
 }
 
-class _SevenDayInsight extends StatelessWidget {
-  const _SevenDayInsight({required this.days});
+class _TrendInsight extends StatefulWidget {
+  const _TrendInsight({required this.records, required this.today});
 
-  final List<LogDaySummary> days;
+  final List<BowelRecord> records;
+  final DateTime today;
+
+  @override
+  State<_TrendInsight> createState() => _TrendInsightState();
+}
+
+class _TrendInsightState extends State<_TrendInsight> {
+  int _windowDays = 7;
 
   @override
   Widget build(BuildContext context) {
-    final total = days.fold<int>(0, (sum, day) => sum + day.recordCount);
-    final activeDays = days.where((day) => day.hasRecord).length;
-    final average = total == 0 ? '—' : (total / 7).toStringAsFixed(1);
+    final start = DateTime(
+      widget.today.year,
+      widget.today.month,
+      widget.today.day - _windowDays + 1,
+    );
+    final records = widget.records.where((record) {
+      final date = dateOnly(record.recordedAt);
+      return !date.isBefore(start) && !date.isAfter(widget.today);
+    }).toList(growable: false);
+    final activeDates = <DateTime>{
+      for (final record in records) dateOnly(record.recordedAt),
+    };
+    final total = records.length;
+    final average = total == 0 ? '—' : (total / _windowDays).toStringAsFixed(1);
+    final distribution = List<int>.filled(bristolTypes.length, 0);
+    for (final record in records) {
+      if (record.bristolType >= 1 && record.bristolType <= bristolTypes.length) {
+        distribution[record.bristolType - 1]++;
+      }
+    }
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
         color: AppColors.paperRaised,
         border: Border.all(color: AppColors.rule),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Expanded(
-            child: _InsightMetric(label: '有记录的天数', value: '$activeDays/7'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Text('趋势摘要', style: pixelStyle(size: 18, height: 1.3)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  _TrendWindowButton(
+                    label: '7天',
+                    selected: _windowDays == 7,
+                    onPressed: () => setState(() => _windowDays = 7),
+                  ),
+                  const SizedBox(width: 6),
+                  _TrendWindowButton(
+                    label: '30天',
+                    selected: _windowDays == 30,
+                    onPressed: () => setState(() => _windowDays = 30),
+                  ),
+                ],
+              ),
+            ],
           ),
-          Expanded(
-            child: _InsightMetric(label: '七天总次数', value: '$total 次'),
+          const SizedBox(height: 6),
+          Text(
+            '近$_windowDays天 · 仅回顾已记录的内容',
+            style: const TextStyle(
+              color: AppColors.inkMuted,
+              fontSize: 12,
+              height: 1.5,
+            ),
           ),
-          Expanded(
-            child: _InsightMetric(label: '日均次数', value: average),
+          const SizedBox(height: 14),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: _InsightMetric(
+                  label: '有记录的天数',
+                  value: '${activeDates.length}/$_windowDays',
+                ),
+              ),
+              Expanded(
+                child: _InsightMetric(label: '样本数', value: '$total'),
+              ),
+              Expanded(
+                child: _InsightMetric(label: '日均次数', value: average),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Bristol 分布',
+            style: pixelStyle(size: 14, height: 1.3, color: AppColors.mossInk),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: <Widget>[
+              for (var index = 0; index < distribution.length; index++)
+                _DistributionChip(
+                  code: bristolTypes[index].code,
+                  count: distribution[index],
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            total == 0
+                ? '还没有可比较的记录，先记一笔再回来看看。'
+                : total < 3
+                ? '样本较少，仅显示记录分布，不做健康判断。'
+                : '只用于回顾记录，不代表健康结论。',
+            style: const TextStyle(
+              color: AppColors.inkMuted,
+              fontSize: 11,
+              height: 1.5,
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TrendWindowButton extends StatelessWidget {
+  const _TrendWindowButton({
+    required this.label,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Pressable(
+      semanticLabel: '查看$label趋势',
+      selected: selected,
+      onPressed: onPressed,
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 34),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.mossPale : AppColors.paper,
+          border: Border.all(
+            color: selected ? AppColors.moss : AppColors.rule,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? AppColors.mossInk : AppColors.inkMuted,
+            fontSize: 12,
+            height: 1.4,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DistributionChip extends StatelessWidget {
+  const _DistributionChip({required this.code, required this.count});
+
+  final String code;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: count > 0 ? AppColors.mossPale : AppColors.paper,
+        border: Border.all(color: count > 0 ? AppColors.moss : AppColors.rule),
+      ),
+      child: Text(
+        '$code  $count',
+        style: TextStyle(
+          color: count > 0 ? AppColors.mossInk : AppColors.inkMuted,
+          fontSize: 11,
+          height: 1.4,
+          fontWeight: count > 0 ? FontWeight.w600 : FontWeight.w400,
+        ),
       ),
     );
   }

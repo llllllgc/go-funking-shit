@@ -56,16 +56,28 @@ class BowelLogController extends ChangeNotifier {
       .toList(growable: false);
 
   List<LogDaySummary> get lastSevenDays {
-    return List<LogDaySummary>.generate(7, (index) {
+    return summariesForDays(7);
+  }
+
+  List<LogDaySummary> get lastThirtyDays {
+    return summariesForDays(30);
+  }
+
+  /// Returns one summary per calendar day, oldest first, ending on the
+  /// controller's current day. Keeping this in the controller means the
+  /// home screen and future trend views use the same date boundary.
+  List<LogDaySummary> summariesForDays(int dayCount) {
+    final totalDays = dayCount < 1 ? 1 : dayCount;
+    return List<LogDaySummary>.generate(totalDays, (index) {
       final date = DateTime(
         _currentDate.year,
         _currentDate.month,
-        _currentDate.day - 6 + index,
+        _currentDate.day - totalDays + 1 + index,
       );
-      final count = _records
+      final recordCount = _records
           .where((record) => isSameDate(record.recordedAt, date))
           .length;
-      return LogDaySummary(date: date, recordCount: count);
+      return LogDaySummary(date: date, recordCount: recordCount);
     });
   }
 
