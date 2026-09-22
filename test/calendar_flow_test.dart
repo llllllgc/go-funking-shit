@@ -202,6 +202,28 @@ void main() {
     expect(controller.todayRecordCount, 1);
   });
 
+  testWidgets('history deletion offers an undo action', (tester) async {
+    await launch(tester);
+    await tester.tap(find.text('记录'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('光滑柔软'));
+    await tester.tap(find.text('光滑柔软'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('历史'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('删除这条记录'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('删除'));
+    await tester.pumpAndSettle();
+    expect(controller.records, isEmpty);
+    expect(find.text('已删除'), findsOneWidget);
+
+    await tester.tap(find.text('撤销'));
+    await tester.pumpAndSettle();
+    expect(controller.records, hasLength(1));
+  });
+
   testWidgets('year and month selection jumps to an older month', (
     tester,
   ) async {

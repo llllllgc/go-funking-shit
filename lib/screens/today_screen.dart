@@ -16,6 +16,7 @@ import '../widgets/pressable.dart';
 import '../widgets/calendar_button.dart';
 import '../widgets/knowledge_preview_card.dart';
 import '../widgets/ticket_bottom_bar.dart';
+import '../widgets/undo_snackbar.dart';
 
 class TodayScreen extends StatelessWidget {
   const TodayScreen({
@@ -60,21 +61,28 @@ class TodayScreen extends StatelessWidget {
                           padding,
                           24,
                         ),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight:
-                                (constraints.maxHeight -
-                                        ticketBottomBarHeight -
-                                        (compact ? 36 : 44))
-                                    .clamp(0, double.infinity),
-                          ),
-                          child: _TodayContent(
-                            controller: controller,
-                            narrow: narrow,
-                            compact: compact,
-                            onEdit: onEdit,
-                            onCalendar: onCalendar,
-                            onKnowledge: onKnowledge,
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: 560,
+                                minHeight:
+                                    (constraints.maxHeight -
+                                            ticketBottomBarHeight -
+                                            (compact ? 36 : 44))
+                                        .clamp(0, double.infinity),
+                              ),
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: _TodayContent(
+                                  controller: controller,
+                                  narrow: narrow,
+                                  compact: compact,
+                                  onEdit: onEdit,
+                                  onCalendar: onCalendar,
+                                  onKnowledge: onKnowledge,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -201,7 +209,14 @@ class _TodayContent extends StatelessWidget {
                   label: '撤销',
                   icon: 'assets/icons/ic_ticket_undo.svg',
                   enabled: !controller.isWorking,
-                  onPressed: () => controller.undo(latest.recordId),
+                  onPressed: () async {
+                    final deleted = await controller.deleteRecord(
+                      latest.recordId,
+                    );
+                    if (deleted != null && context.mounted) {
+                      showRecordUndoSnackBar(context, controller, deleted);
+                    }
+                  },
                 ),
               ],
             ),
@@ -225,7 +240,14 @@ class _TodayContent extends StatelessWidget {
           ),
         SizedBox(height: compact ? 20 : 28),
         KnowledgePreviewCard(
-          tip: KnowledgeBase.featuredFor(latest?.bristolType),
+          // The knowledge card should stay useful on days without a new
+          // entry. Records are kept newest-first by the controller, so use
+          // the latest entry across the whole log rather than today's entry.
+          tip: KnowledgeBase.featuredFor(
+            controller.records.isEmpty
+                ? null
+                : controller.records.first.bristolType,
+          ),
           onPressed: onKnowledge,
         ),
         SizedBox(height: compact ? 24 : 40),
@@ -236,6 +258,8 @@ class _TodayContent extends StatelessWidget {
           today: controller.currentDate,
           onCalendar: onCalendar,
         ),
+        const SizedBox(height: 16),
+        _SevenDayInsight(days: controller.lastSevenDays),
         SizedBox(height: compact ? 24 : 36),
         const SizedBox(
           width: double.infinity,
@@ -262,6 +286,72 @@ class _TodayContent extends StatelessWidget {
       7 => 'assets/images/toilet_paper_spirit_sad.png',
       _ => 'assets/images/toilet_paper_spirit_normal.png',
     };
+  }
+}
+
+class _SevenDayInsight extends StatelessWidget {
+  const _SevenDayInsight({required this.days});
+
+  final List<LogDaySummary> days;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = days.fold<int>(0, (sum, day) => sum + day.recordCount);
+    final activeDays = days.where((day) => day.hasRecord).length;
+    final average = total == 0 ? '—' : (total / 7).toStringAsFixed(1);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: AppColors.paperRaised,
+        border: Border.all(color: AppColors.rule),
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: _InsightMetric(label: '有记录的天数', value: '$activeDays/7'),
+          ),
+          Expanded(
+            child: _InsightMetric(label: '七天总次数', value: '$total 次'),
+          ),
+          Expanded(
+            child: _InsightMetric(label: '日均次数', value: average),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightMetric extends StatelessWidget {
+  const _InsightMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: <Widget>[
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: pixelStyle(size: 16, height: 22 / 16, color: AppColors.mossInk),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          maxLines: 2,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: AppColors.inkMuted,
+            fontSize: 11,
+            height: 16 / 11,
+          ),
+        ),
+      ],
+    );
   }
 }
 

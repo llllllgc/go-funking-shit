@@ -28,7 +28,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('knowledge-back')), findsOneWidget);
-    expect(find.text('今天这张'), findsOneWidget);
+    expect(find.text('最近这张'), findsOneWidget);
     expect(find.text('纤维要慢慢加，水要跟上'), findsNWidgets(2));
     expect(find.byKey(const Key('knowledge-card-fiber-water')), findsOneWidget);
 
@@ -40,4 +40,30 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('食物影响，先记“自己的规律”'), findsOneWidget);
   });
+
+  testWidgets(
+    'knowledge recommendation uses the latest entry even when today is empty',
+    (tester) async {
+      final now = DateTime(2026, 9, 19, 14, 32);
+      final repository = MemoryRepository(now)
+        ..records.add(
+          BowelRecord(
+            recordId: 'yesterday',
+            bristolType: 2,
+            recordedAt: DateTime(2026, 9, 18, 9),
+            updatedAt: now,
+          ),
+        );
+      final controller = BowelLogController(repository, now: () => now);
+      await controller.initialize();
+
+      await tester.pumpWidget(LaLeMaApp(controller: controller));
+      await tester.pumpAndSettle();
+
+      // There is no entry on 9/19, but the latest logged type is still a
+      // useful signal for the featured card.
+      expect(controller.todayRecordCount, 0);
+      expect(find.text('纤维要慢慢加，水要跟上'), findsOneWidget);
+    },
+  );
 }

@@ -1,5 +1,7 @@
 // Hallmark · genre: playful · macrostructure: chronological-ticket · design-system: locked LaLeMa
 // Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V4
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -12,6 +14,7 @@ import '../domain/bristol_type.dart';
 import '../widgets/pressable.dart';
 import '../widgets/calendar_button.dart';
 import '../widgets/ticket_bottom_bar.dart';
+import '../widgets/undo_snackbar.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({
@@ -33,20 +36,32 @@ class HistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.paper,
-      body: SafeArea(
-        bottom: false,
-        child: AnimatedBuilder(
-          animation: controller,
-          builder: (context, _) {
-            return Stack(
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) onToday();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.paper,
+        body: SafeArea(
+          bottom: false,
+          child: AnimatedBuilder(
+            animation: controller,
+            builder: (context, _) {
+              return Stack(
               children: <Widget>[
                 Positioned.fill(
                   bottom: ticketBottomBarHeight,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-                    children: <Widget>[
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final width = math.min(560.0, constraints.maxWidth);
+                      return Align(
+                        alignment: Alignment.topCenter,
+                        child: SizedBox(
+                          width: width,
+                          child: ListView(
+                            padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                            children: <Widget>[
                       Row(
                         children: [
                           Expanded(
@@ -132,7 +147,11 @@ class HistoryScreen extends StatelessWidget {
                           ),
                         const SizedBox(height: 24),
                       ],
-                    ],
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 Align(
@@ -146,8 +165,9 @@ class HistoryScreen extends StatelessWidget {
                   ),
                 ),
               ],
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -167,7 +187,7 @@ class HistoryScreen extends StatelessWidget {
           actionsPadding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
           title: Text('删除这条记录？', style: pixelStyle(size: 20, height: 26 / 20)),
           content: Text(
-            '${formatDeleteDate(record.recordedAt)} · ${type.code} ${type.label}\n删除后无法恢复。',
+            '${formatDeleteDate(record.recordedAt)} · ${type.code} ${type.label}\n删除后可在短时间内撤销。',
             style: const TextStyle(
               color: AppColors.inkMuted,
               fontSize: 14,
@@ -197,7 +217,12 @@ class HistoryScreen extends StatelessWidget {
         );
       },
     );
-    if (confirmed == true) await controller.deleteRecord(record.recordId);
+    if (confirmed == true) {
+      final deleted = await controller.deleteRecord(record.recordId);
+      if (deleted != null && context.mounted) {
+        showRecordUndoSnackBar(context, controller, deleted);
+      }
+    }
   }
 }
 

@@ -17,6 +17,7 @@ void main() {
 
     expect(find.text('今天'), findsWidgets);
     expect(find.text('点一下，记一笔'), findsOneWidget);
+    expect(find.text('有记录的天数'), findsOneWidget);
     expect(find.text('记录'), findsOneWidget);
 
     await tester.tap(find.text('历史'));

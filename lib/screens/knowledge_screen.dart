@@ -23,15 +23,25 @@ class _KnowledgeScreenState extends State<KnowledgeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final latest = widget.controller.latestTodayRecord;
+    // Recommendations are based on the latest observation in the log. A
+    // user may open the knowledge base on a day without a new entry, and the
+    // previous implementation silently fell back to generic content then.
+    final latest = widget.controller.records.isEmpty
+        ? null
+        : widget.controller.records.first;
     final featured = KnowledgeBase.featuredFor(latest?.bristolType);
     final tips = KnowledgeBase.forCategory(_category);
     return Scaffold(
       backgroundColor: AppColors.paper,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
-          children: <Widget>[
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: SizedBox(
+              width: double.infinity,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
+                children: <Widget>[
             Row(
               children: <Widget>[
                 Pressable(
@@ -113,7 +123,10 @@ class _KnowledgeScreenState extends State<KnowledgeScreen> {
               ),
             const SizedBox(height: 12),
             const _KnowledgeFooter(),
-          ],
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -139,7 +152,14 @@ class _FeaturedNote extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Text('今天这张', style: pixelStyle(size: 16, height: 22 / 16, color: AppColors.mossInk)),
+              Text(
+                basedOnRecord ? '最近这张' : '入门纸条',
+                style: pixelStyle(
+                  size: 16,
+                  height: 22 / 16,
+                  color: AppColors.mossInk,
+                ),
+              ),
               const Spacer(),
               Text(
                 basedOnRecord ? '根据你的记录' : '从基础知识开始',

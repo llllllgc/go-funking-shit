@@ -239,10 +239,15 @@ class _RecordScreenState extends State<RecordScreen> {
                   onBack: () => Navigator.of(context).pop(),
                 ),
                 Expanded(
-                  child: ListView(
-                    key: const PageStorageKey('record-form'),
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                    children: [
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 560),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ListView(
+                          key: const PageStorageKey('record-form'),
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                          children: [
                       if (_explicitSave) _dateControls(!controller.isWorking),
                       Text('更接近哪一种？', style: pixelStyle(size: 28, height: 1.3)),
                       Padding(
@@ -272,7 +277,10 @@ class _RecordScreenState extends State<RecordScreen> {
                         ),
                         const SizedBox(height: 8),
                       ],
-                    ],
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 if (controller.errorMessage != null)
