@@ -39,7 +39,8 @@ class BowelLogController extends ChangeNotifier {
   String? _errorMessage;
   final Map<String, BowelRecord> _deletedRecords = <String, BowelRecord>{};
 
-  List<BowelRecord> get records => List<BowelRecord>.unmodifiable(_records);
+  /// Immutable snapshots retain identity until a successful data change.
+  List<BowelRecord> get records => _records;
   DateTime get currentDate => _currentDate;
   DateTime get now => _now();
   bool get isLoading => _isLoading;
@@ -263,9 +264,9 @@ class BowelLogController extends ChangeNotifier {
       // resolves. Updating the in-memory snapshot directly avoids turning a
       // successful deletion into a misleading failure if a follow-up read is
       // temporarily unavailable.
-      _records = _records
-          .where((record) => record.recordId != recordId)
-          .toList(growable: false);
+      _records = List<BowelRecord>.unmodifiable(
+        _records.where((record) => record.recordId != recordId),
+      );
       _deletedRecords[recordId] = deleted;
       _feedbackMessage = successMessage;
       return deleted;
@@ -335,10 +336,12 @@ class BowelLogController extends ChangeNotifier {
   }
 
   void _sortRecords() {
-    _records.sort((a, b) {
-      final byTime = b.recordedAt.compareTo(a.recordedAt);
-      return byTime != 0 ? byTime : b.recordId.compareTo(a.recordId);
-    });
+    final sorted = List<BowelRecord>.of(_records)
+      ..sort((a, b) {
+        final byTime = b.recordedAt.compareTo(a.recordedAt);
+        return byTime != 0 ? byTime : b.recordId.compareTo(a.recordId);
+      });
+    _records = List<BowelRecord>.unmodifiable(sorted);
   }
 
   void _beginAction() {

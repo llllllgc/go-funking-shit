@@ -142,6 +142,12 @@ void main() {
         expect(tester.takeException(), isNull);
         await tapVisible(tester, find.byKey(const Key('record-save')));
         await tapVisible(tester, find.text('历史'));
+        await tester.scrollUntilVisible(
+          find.text('早餐后，感觉腹胀'),
+          180,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
         expect(find.text('早餐后，感觉腹胀'), findsOneWidget);
         expect(tester.takeException(), isNull);
       },

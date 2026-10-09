@@ -14,6 +14,7 @@ import 'screens/calendar_screen.dart';
 import 'screens/knowledge_screen.dart';
 import 'screens/record_screen.dart';
 import 'screens/today_screen.dart';
+import 'domain/history_filter.dart';
 
 class LaLeMaApp extends StatelessWidget {
   const LaLeMaApp({required this.controller, super.key});
@@ -45,28 +46,51 @@ class LaLeMaShell extends StatefulWidget {
 
 class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
   int _page = 0;
+  HistoryFilter _historyFilter = const HistoryFilter();
   Timer? _dateTimer;
+  Timer? _clockCheckTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _dateTimer = Timer.periodic(
-      const Duration(minutes: 1),
-      (_) => widget.controller.refreshDate(),
+    _scheduleDateRefresh();
+    // Keep detecting foreground clock/time-zone changes; the midnight timer
+    // avoids waiting for this fallback when a normal day boundary is crossed.
+    _clockCheckTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      widget.controller.refreshDate();
+      _scheduleDateRefresh();
+    });
+  }
+
+  void _scheduleDateRefresh() {
+    _dateTimer?.cancel();
+    final now = widget.controller.now;
+    final midnight = DateTime(now.year, now.month, now.day + 1);
+    _dateTimer = Timer(
+      midnight.difference(now) + const Duration(milliseconds: 1),
+      () {
+        if (!mounted) return;
+        widget.controller.refreshDate();
+        _scheduleDateRefresh();
+      },
     );
   }
 
   @override
   void dispose() {
     _dateTimer?.cancel();
+    _clockCheckTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) widget.controller.refreshDate();
+    if (state == AppLifecycleState.resumed) {
+      widget.controller.refreshDate();
+      _scheduleDateRefresh();
+    }
   }
 
   Future<DateTime?> _openRecord({
@@ -163,6 +187,8 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
       onCalendar: () => _openCalendar(widget.controller.currentDate),
       onBackfill: _backfillYesterday,
       onData: _openData,
+      initialFilter: _historyFilter,
+      onFilterChanged: (value) => _historyFilter = value,
     );
   }
 }

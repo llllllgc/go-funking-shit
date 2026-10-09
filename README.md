@@ -10,6 +10,7 @@
 - 记录：Bristol 01–07 形态选择，日常记录点选即存；修改记录时可调整日期、时间和形态，确认后保存；记录页提供按需打开的形态说明
 - 可选细节：腹痛、腹胀、急迫、费力及最多 1000 字备注；填写细节后确认保存，返回时保护未保存的备注；快捷记录不会复制上一次的不适
 - 数据管理：从历史页进入；完整 JSON 备份、7/30 天或全部 CSV 导出、导入预览与合并、输入“清空”后删除本机日志。CSV 默认不含备注/不适；重复和冲突导入均不覆盖本机内容
+- 历史检索：本机关键词搜索，支持备注/形态/不适；7/30 天与自选日期、形态、不适可组合；保留本次使用的筛选条件，记录列表按需构建
 - 历史：按日期倒序分组、右上角“＋补记”、月历入口、修改和带记录详情的删除确认
 - 月历：点击首页近七日的任一纸卷进入对应日期；按自然月查看，周一开始、六行日期，支持翻月和年月跳转
 - 回到今天：月历右上角使用像素小日历＋“今”字，长按显示含义；今天与选中日期分别标识
@@ -45,7 +46,7 @@ flutter build apk --debug
 flutter build apk --release
 ```
 
-安装包输出到 `build/app/outputs/flutter-apk/app-release.apk`。当前 Release 使用测试签名。
+Release 需要单独的发布密钥。先把 `android/key.properties.example` 复制为本机的 `android/key.properties`，填写绝对密钥路径及对应值后再构建；未配置时会明确失败，不再借用调试签名。密钥、密码文件已由 Git 忽略，不能提交。安装包输出到 `build/app/outputs/flutter-apk/app-release.apk`。详情见 [发布签名说明](docs/release-signing.md)。
 
 如果出现 `The SDK is not specified for modules lalema, lalema_android`，在 **File → Project Structure** 中给项目选择本机已安装的 Android SDK，并让两个模块的 **Module SDK** 继承 **Project SDK**。当前本机项目配置关联 Android API 36；更换电脑时需重新选择已注册的 SDK。修改 IDE 配置文件后，关闭并重新打开项目使其生效。
 
@@ -69,4 +70,4 @@ flutter build apk --debug
 
 删除应用可能一并删除本地记录；系统设备备份是否包含应用数据取决于平台与设备设置。现在可从“历史 → 备份、导出与恢复”保存完整 JSON 备份；导出文件未加密，请保存在可信位置。CSV 仅用于阅读，不能导入。当前版本仍待完整真机与分发验收，不能称为正式发布版本。
 
-当前开发版本：`1.6.0+7`。交互草图位于 `tool/prototypes/`，用于设计留档，不会打包进 App。真实 Flutter 页面截图位于 `tool/captures/`，使用虚构演示记录。
+当前开发版本：`1.7.0+8`。交互草图位于 `tool/prototypes/`，用于设计留档，不会打包进 App。真实 Flutter 页面截图位于 `tool/captures/`，使用虚构演示记录。

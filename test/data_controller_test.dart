@@ -17,6 +17,26 @@ void main() {
     details: const RecordDetails(note: '导入完整细节', discomfortMask: 8),
   );
 
+  test('record snapshots are immutable and detached after writes', () async {
+    final repository = MemoryRepository(now);
+    final controller = BowelLogController(repository, now: () => now);
+    await controller.initialize();
+    await controller.saveType(4);
+    final original = controller.records;
+    expect(() => original.clear(), throwsUnsupportedError);
+    controller.clearFeedback();
+    expect(identical(original, controller.records), isTrue);
+    repository.failWrites = true;
+    expect(await controller.saveType(5), isFalse);
+    expect(identical(original, controller.records), isTrue);
+    repository.failWrites = false;
+    await controller.saveType(5);
+    expect(original, hasLength(1));
+    expect(controller.records, hasLength(2));
+    await controller.deleteRecord(controller.records.first.recordId);
+    expect(() => controller.records.add(incoming()), throwsUnsupportedError);
+  });
+
   test(
     'committed import does not depend on a successful follow-up read',
     () async {

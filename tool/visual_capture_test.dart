@@ -146,6 +146,19 @@ void main() {
       matchesGoldenFile('captures/history_375.png'),
     );
 
+    await tester.enterText(find.byKey(const Key('history-search')), '松散');
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(captureKey),
+      matchesGoldenFile('captures/history_filtered_375.png'),
+    );
+    await tester.ensureVisible(find.byKey(const Key('history-reset')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('history-reset')));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.byKey(const Key('history-data')));
     await tester.pumpAndSettle();
     await expectLater(
