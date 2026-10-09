@@ -115,6 +115,39 @@ void main() {
     },
   );
 
+  test(
+    'failed restore is retryable and retains original time after clock rollback',
+    () async {
+      var clock = now;
+      final repository = await SqliteBowelRecordRepository.open(
+        databasePath: databasePath,
+        factory: databaseFactoryFfi,
+        now: () => clock,
+      );
+      opened.add(repository);
+      final original = await repository.create(
+        3,
+        details: const RecordDetails(note: '原备注', discomfortMask: 9),
+      );
+      await repository.delete(original.recordId);
+      final db = await databaseFactoryFfi.openDatabase(databasePath);
+      await db.execute(
+        "CREATE TRIGGER reject_restore BEFORE INSERT ON bowel_records BEGIN SELECT RAISE(ABORT, 'temporary failure'); END",
+      );
+      await expectLater(
+        repository.restore(original),
+        throwsA(isA<DatabaseException>()),
+      );
+      expect(await repository.loadAll(), isEmpty);
+      await db.execute('DROP TRIGGER reject_restore');
+      clock = now.subtract(const Duration(days: 2));
+      await repository.restore(original);
+      await repository.close();
+      final reopened = await open();
+      expect((await reopened.loadAll()).single.toMap(), original.toMap());
+    },
+  );
+
   test('invalid updates leave original data intact', () async {
     final repository = await open();
     final record = await repository.create(

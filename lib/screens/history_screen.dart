@@ -486,7 +486,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           actionsPadding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
           title: Text('删除这条记录？', style: pixelStyle(size: 20, height: 26 / 20)),
           content: Text(
-            '${formatDeleteDate(record.recordedAt)} · ${type.code} ${type.label}\n删除后可在提示条中恢复记录。',
+            '${formatDeleteDate(record.recordedAt)} · ${type.code} ${type.label}\n删除后可在提示条中恢复。关闭提示、打开其他页面或退出应用后无法恢复。',
             style: const TextStyle(
               color: AppColors.inkMuted,
               fontSize: 14,
@@ -520,6 +520,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final deleted = await controller.deleteRecord(record.recordId);
       if (deleted != null && context.mounted) {
         showRecordUndoSnackBar(context, controller, deleted);
+      } else if (deleted != null) {
+        final recovery = controller.recoveryFor(deleted.recordId);
+        if (recovery != null) controller.dismissRecovery(recovery);
       }
     }
   }

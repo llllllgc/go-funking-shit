@@ -17,6 +17,14 @@ class LogDaySummary {
   bool get hasRecord => recordCount > 0;
 }
 
+/// One recovery opportunity. A new deletion gets a new identity, even when
+/// the same record is deleted again after being restored.
+class RecordRecovery {
+  RecordRecovery._(this.record);
+
+  final BowelRecord record;
+}
+
 class BowelLogController extends ChangeNotifier {
   BowelLogController(
     this._repository, {
@@ -41,9 +49,10 @@ class BowelLogController extends ChangeNotifier {
   bool _isWorking = false;
   String? _feedbackMessage;
   String? _errorMessage;
+  RecordRecovery? _failedRecovery;
   DateTime? _lastSavedAt;
   DateTime? get lastSavedAt => _lastSavedAt;
-  final Map<String, BowelRecord> _deletedRecords = <String, BowelRecord>{};
+  final Map<String, RecordRecovery> _deletedRecords = {};
 
   /// Immutable snapshots retain identity until a successful data change.
   List<BowelRecord> get records => _records;
@@ -58,7 +67,21 @@ class BowelLogController extends ChangeNotifier {
   ///
   /// The controller keeps the complete record in memory so a restore can
   /// preserve its original id, occurrence time, and update timestamp.
-  BowelRecord? deletedRecord(String recordId) => _deletedRecords[recordId];
+  BowelRecord? deletedRecord(String recordId) => recoveryFor(recordId)?.record;
+
+  RecordRecovery? recoveryFor(String recordId) => _deletedRecords[recordId];
+
+  /// Drop the in-memory copy when its recovery prompt is dismissed. An old
+  /// prompt must never discard a later deletion of the same record.
+  void dismissRecovery(RecordRecovery recovery) {
+    final id = recovery.record.recordId;
+    if (identical(_deletedRecords[id], recovery)) _deletedRecords.remove(id);
+    if (identical(_failedRecovery, recovery)) {
+      _failedRecovery = null;
+      _errorMessage = null;
+      notifyListeners();
+    }
+  }
 
   List<BowelRecord> get todayRecords => _records
       .where((record) => isSameDate(record.recordedAt, _currentDate))
@@ -136,6 +159,7 @@ class BowelLogController extends ChangeNotifier {
     }
     _feedbackMessage = null;
     _errorMessage = null;
+    _failedRecovery = null;
     notifyListeners();
   }
 
@@ -227,15 +251,22 @@ class BowelLogController extends ChangeNotifier {
 
   /// Restores a record deleted through [deleteRecord] or [undo].
   ///
-  /// Returning a bool lets transient UI actions quietly disappear when the
-  /// short undo window has expired or a restore has already been attempted.
-  Future<bool> restoreRecord(String recordId) async {
+  /// Failures retain the original recovery opportunity for an explicit retry.
+  /// The optional identity rejects actions from obsolete recovery prompts.
+  Future<bool> restoreRecord(
+    String recordId, {
+    RecordRecovery? expectedRecovery,
+  }) async {
     if (_isWorking || _isLoading || !_hasLoaded || recordId.trim().isEmpty) {
       return false;
     }
     if (!_checkWriteAccess()) return false;
-    final deleted = _deletedRecords[recordId];
-    if (deleted == null) return false;
+    final recovery = _deletedRecords[recordId];
+    if (recovery == null ||
+        (expectedRecovery != null && !identical(recovery, expectedRecovery))) {
+      return false;
+    }
+    final deleted = recovery.record;
     _beginAction();
     try {
       await _repository.restore(deleted);
@@ -245,7 +276,12 @@ class BowelLogController extends ChangeNotifier {
       _feedbackMessage = '已恢复';
       return true;
     } catch (_) {
-      _errorMessage = '没有恢复成功，请再试一次';
+      if (identical(_deletedRecords[recordId], recovery)) {
+        _failedRecovery = recovery;
+        _errorMessage = '没有恢复成功，请在提示条中重试';
+      } else {
+        _errorMessage = '没有恢复成功';
+      }
       return false;
     } finally {
       _endAction();
@@ -277,7 +313,7 @@ class BowelLogController extends ChangeNotifier {
       _records = List<BowelRecord>.unmodifiable(
         _records.where((record) => record.recordId != recordId),
       );
-      _deletedRecords[recordId] = deleted;
+      _deletedRecords[recordId] = RecordRecovery._(deleted);
       _feedbackMessage = successMessage;
       return deleted;
     } catch (_) {
@@ -346,6 +382,7 @@ class BowelLogController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _failedRecovery = null;
     _lastSavedAt = null;
     _deletedRecords.clear();
     if (onDispose != null) unawaited(onDispose!());
@@ -369,6 +406,7 @@ class BowelLogController extends ChangeNotifier {
 
   void _beginAction() {
     _isWorking = true;
+    _failedRecovery = null;
     _feedbackMessage = null;
     _errorMessage = null;
     notifyListeners();

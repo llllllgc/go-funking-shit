@@ -48,6 +48,38 @@ void main() {
     },
   );
 
+  test(
+    'obsolete recovery actions cannot restore or discard a later deletion',
+    () async {
+      final repository = MemoryRepository(now);
+      final controller = BowelLogController(repository, now: () => now);
+      addTearDown(controller.dispose);
+      await controller.initialize();
+      await controller.saveType(4);
+      final id = controller.records.single.recordId;
+      await controller.deleteRecord(id);
+      final first = controller.recoveryFor(id)!;
+      expect(
+        await controller.restoreRecord(id, expectedRecovery: first),
+        isTrue,
+      );
+      await controller.deleteRecord(id);
+      final second = controller.recoveryFor(id)!;
+      controller.dismissRecovery(first);
+      expect(identical(controller.recoveryFor(id), second), isTrue);
+      expect(
+        await controller.restoreRecord(id, expectedRecovery: first),
+        isFalse,
+      );
+      expect(repository.records, isEmpty);
+      expect(
+        await controller.restoreRecord(id, expectedRecovery: second),
+        isTrue,
+      );
+      expect(repository.records, hasLength(1));
+    },
+  );
+
   test('record snapshots are immutable and detached after writes', () async {
     final repository = MemoryRepository(now);
     final controller = BowelLogController(repository, now: () => now);

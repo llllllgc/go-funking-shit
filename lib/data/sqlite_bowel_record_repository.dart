@@ -176,7 +176,11 @@ class SqliteBowelRecordRepository
   @override
   Future<void> restore(BowelRecord record) async {
     _requireValidType(record.bristolType);
-    _requireValidTime(record.recordedAt, _now());
+    // This is an existing record, not a newly entered occurrence. Moving the
+    // device clock backwards must not make undo impossible or alter its time.
+    if (record.recordedAt.isBefore(DateTime(1900))) {
+      throw ArgumentError.value(record.recordedAt, 'recordedAt');
+    }
     record.details.validated();
     if (record.recordId.trim().isEmpty) {
       throw ArgumentError('recordId must not be blank');

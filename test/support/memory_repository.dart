@@ -15,6 +15,7 @@ class MemoryRepository implements BowelRecordRepository {
   bool failReads = false;
   Completer<void>? writeGate;
   int createCalls = 0;
+  int restoreCalls = 0;
   int _nextId = 0;
 
   @override
@@ -83,11 +84,16 @@ class MemoryRepository implements BowelRecordRepository {
 
   @override
   Future<void> delete(String recordId) async {
+    if (writeGate != null) await writeGate!.future;
+    if (failWrites) throw StateError('Write failed');
     records.removeWhere((record) => record.recordId == recordId);
   }
 
   @override
   Future<void> restore(BowelRecord record) async {
+    restoreCalls++;
+    if (writeGate != null) await writeGate!.future;
+    if (failWrites) throw StateError('Write failed');
     if (records.any((item) => item.recordId == record.recordId)) {
       throw StateError('Record already exists');
     }

@@ -224,6 +224,13 @@ class _TodayContent extends StatelessWidget {
                       );
                       if (deleted != null && context.mounted) {
                         showRecordUndoSnackBar(context, controller, deleted);
+                      } else if (deleted != null) {
+                        final recovery = controller.recoveryFor(
+                          deleted.recordId,
+                        );
+                        if (recovery != null) {
+                          controller.dismissRecovery(recovery);
+                        }
                       }
                     },
                   ),

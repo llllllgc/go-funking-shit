@@ -179,6 +179,12 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
     await _openRecord(initialDate: DateTime(now.year, now.month, now.day - 1));
   }
 
+  void _selectPage(int page) {
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    widget.controller.clearFeedback();
+    setState(() => _page = page);
+  }
+
   @override
   Widget build(BuildContext context) {
     SystemChrome.setSystemUIOverlayStyle(
@@ -195,7 +201,7 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
       return TodayScreen(
         controller: widget.controller,
         onRecord: () => _openRecord(),
-        onHistory: () => setState(() => _page = 1),
+        onHistory: () => _selectPage(1),
         onEdit: (id) => _openRecord(recordId: id),
         onCalendar: _openCalendar,
         onKnowledge: _openKnowledge,
@@ -204,7 +210,7 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
     }
     return HistoryScreen(
       controller: widget.controller,
-      onToday: () => setState(() => _page = 0),
+      onToday: () => _selectPage(0),
       onRecord: () => _openRecord(),
       onEdit: (id) => _openRecord(recordId: id),
       onCalendar: () => _openCalendar(widget.controller.currentDate),

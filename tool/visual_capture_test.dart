@@ -1,4 +1,5 @@
 import '../test/support/privacy_fakes.dart';
+import '../test/support/memory_repository.dart';
 import 'package:lalema/screens/data_screen.dart';
 import 'package:lalema/data/backup_files.dart';
 import 'package:lalema/data/record_archive.dart';
@@ -24,6 +25,48 @@ void main() {
       ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
     await Future.wait([pixelFont.load(), bodyFont.load(), materialFont.load()]);
   });
+
+  for (final scale in [1.0, 2.0]) {
+    testWidgets('capture recovery failure at text scale $scale', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = scale > 1
+          ? const Size(320, 640)
+          : const Size(375, 812);
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final now = DateTime(2026, 10, 9, 12);
+      final repository = MemoryRepository(now);
+      final controller = BowelLogController(repository, now: () => now);
+      await controller.initialize();
+      await controller.saveType(4);
+      const captureKey = Key('recovery-capture');
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: captureKey,
+          child: LaLeMaApp(
+            controller: controller,
+            privacy: await unlockedPrivacy(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('删除'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('删除'));
+      await tester.pumpAndSettle();
+      repository.failWrites = true;
+      await tester.tap(find.byKey(const Key('undo-restore')));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byKey(captureKey),
+        matchesGoldenFile('captures/recovery_failure_$scale.png'),
+      );
+    });
+  }
 
   testWidgets('capture backup import preview', (tester) async {
     tester.view.devicePixelRatio = 1;
