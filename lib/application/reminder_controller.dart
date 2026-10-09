@@ -3,11 +3,19 @@ import 'package:flutter/foundation.dart';
 import '../data/reminder_service.dart';
 
 class ReminderController extends ChangeNotifier {
-  ReminderController(this._service, {bool Function()? canInteract})
-    : _canInteract = canInteract ?? _alwaysAllow;
+  ReminderController(
+    this._service, {
+    bool Function()? canInteract,
+    int Function()? interactionEpoch,
+    this.waitForInteraction,
+  }) : _canInteract = canInteract ?? _alwaysAllow,
+       _interactionEpoch = interactionEpoch ?? _defaultEpoch;
   static bool _alwaysAllow() => true;
+  static int _defaultEpoch() => 0;
   final ReminderService _service;
   final bool Function() _canInteract;
+  final int Function() _interactionEpoch;
+  final Future<bool> Function(int)? waitForInteraction;
   ReminderState? _state;
   ReminderState? get state => _state;
   bool _busy = false;
@@ -35,12 +43,20 @@ class ReminderController extends ChangeNotifier {
     if (!_allow() || _state == null || _uncertain) return;
     await _run(() async {
       if (enabled && _state!.permission != ReminderPermission.allowed) {
+        final epoch = _interactionEpoch();
         _state = await _service.requestPermission();
         if (_state!.permission != ReminderPermission.allowed) {
           _message = '通知尚未允许，你仍可正常记录。可到系统设置中开启通知。';
           return;
         }
-        if (_disposed || !_canInteract()) {
+        if (_disposed) return;
+        final resumed = waitForInteraction == null
+            ? _canInteract()
+            : await waitForInteraction!(epoch);
+        if (_disposed ||
+            !resumed ||
+            epoch != _interactionEpoch() ||
+            !_canInteract()) {
           _message = '通知权限已更新，返回并解锁后可继续开启提醒。';
           return;
         }

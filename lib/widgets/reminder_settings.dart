@@ -88,6 +88,14 @@ class ReminderSettings extends StatelessWidget {
                 ),
               ),
             ),
+          if (state?.permission == ReminderPermission.denied)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text(
+                '在系统设置中找到“拉了么？”的通知选项，允许通知后返回这里。',
+                style: TextStyle(color: AppColors.inkMuted, height: 1.5),
+              ),
+            ),
           Wrap(
             spacing: 12,
             children: [

@@ -24,6 +24,7 @@ class PrivacyController extends ChangeNotifier {
   int? _authenticatedEpoch;
   AppLifecycleState _lifecycle = AppLifecycleState.resumed;
   String? _message;
+  final Map<Completer<bool>, int> _interactionWaiters = {};
 
   int get accessEpoch => _epoch;
   bool allowsInteraction(int epoch) =>
@@ -35,6 +36,35 @@ class PrivacyController extends ChangeNotifier {
   String? get message => _message;
   bool get concealed =>
       !_ready || _fault || _locked || _lifecycle != AppLifecycleState.resumed;
+
+  /// A permission callback can arrive just before its matching resume event.
+  /// Only an unlocked, unchanged session may wait through that brief inactive
+  /// state. A real background transition, lock, reload or disposal cancels it.
+  Future<bool> waitForInteraction(int epoch) {
+    final decision = _interactionDecision(epoch);
+    if (decision != null) return Future.value(decision);
+    final waiter = Completer<bool>();
+    _interactionWaiters[waiter] = epoch;
+    return waiter.future;
+  }
+
+  bool? _interactionDecision(int epoch) {
+    if (_disposed || epoch != _epoch || !_ready || _fault || _locked) {
+      return false;
+    }
+    if (_lifecycle == AppLifecycleState.resumed) return true;
+    return _lifecycle == AppLifecycleState.inactive ? null : false;
+  }
+
+  void _settleInteractionWaiters() {
+    for (final entry in _interactionWaiters.entries.toList()) {
+      final decision = _interactionDecision(entry.value);
+      if (decision != null) {
+        _interactionWaiters.remove(entry.key);
+        entry.key.complete(decision);
+      }
+    }
+  }
 
   Future<void> initialize() async {
     // Failure propagates to bootstrap: a failed read is never treated as off.
@@ -194,6 +224,7 @@ class PrivacyController extends ChangeNotifier {
 
   @override
   void notifyListeners() {
+    _settleInteractionWaiters();
     if (!_disposed) super.notifyListeners();
   }
 
@@ -201,6 +232,7 @@ class PrivacyController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _epoch++;
+    _settleInteractionWaiters();
     if (_busy) unawaited(auth.cancel().catchError((Object _) {}));
     super.dispose();
   }

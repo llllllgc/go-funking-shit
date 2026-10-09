@@ -13,13 +13,17 @@ final class RunnerUITests: XCTestCase {
 
   override func tearDownWithError() throws {
     if let run = testRun, run.failureCount > 0 {
-      let screenshot = XCTAttachment(screenshot: app.screenshot())
+      let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
       screenshot.lifetime = .keepAlways
       add(screenshot)
       let hierarchy = XCTAttachment(string: app.debugDescription)
       hierarchy.name = "Failure accessibility hierarchy (synthetic data only)"
       hierarchy.lifetime = .keepAlways
       add(hierarchy)
+      let systemHierarchy = XCTAttachment(string: XCUIApplication(bundleIdentifier: "com.apple.springboard").debugDescription)
+      systemHierarchy.name = "System accessibility hierarchy (disposable simulator only)"
+      systemHierarchy.lifetime = .keepAlways
+      add(systemHierarchy)
     }
     app.terminate()
   }
@@ -117,6 +121,123 @@ final class RunnerUITests: XCTestCase {
 
   private func text(_ label: String) -> XCUIElement {
     app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
+  }
+
+  func testFirstNotificationApprovalPersists() throws {
+    let settings = app.buttons["设置与隐私"]
+    XCTAssertTrue(settings.waitForExistence(timeout: 30), app.debugDescription)
+    settings.tap()
+    let reminder = app.switches.matching(NSPredicate(format: "label BEGINSWITH %@", "每日提醒")).firstMatch
+    reveal(reminder)
+    XCTAssertEqual(reminder.value as? String, "0")
+    reminder.tap()
+    let system = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    let permission = system.alerts.firstMatch
+    XCTAssertTrue(permission.waitForExistence(timeout: 15), system.debugDescription)
+    XCTAssertTrue(permission.label.contains("Notifications"), system.debugDescription)
+    permission.buttons["Allow"].tap()
+    let scheduled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@ AND label CONTAINS %@", "1", "已安排"), object: reminder)
+    XCTAssertEqual(XCTWaiter.wait(for: [scheduled], timeout: 15), .completed, app.debugDescription)
+    app.terminate()
+    app.launch()
+    XCTAssertTrue(settings.waitForExistence(timeout: 30), app.debugDescription)
+    settings.tap()
+    XCTAssertTrue(reminder.waitForExistence(timeout: 15), app.debugDescription)
+    XCTAssertEqual(reminder.value as? String, "1")
+    XCTAssertTrue(reminder.label.contains("已安排"))
+    reveal(reminder)
+    reminder.tap()
+    let disabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "0"), object: reminder)
+    XCTAssertEqual(XCTWaiter.wait(for: [disabled], timeout: 10), .completed, app.debugDescription)
+  }
+
+  func testReminderPermissionRecoveryAndDelivery() throws {
+    let settings = app.buttons["设置与隐私"]
+    XCTAssertTrue(settings.waitForExistence(timeout: 30), app.debugDescription)
+    settings.tap()
+    let reminder = app.switches.matching(NSPredicate(format: "label BEGINSWITH %@", "每日提醒")).firstMatch
+    reveal(reminder)
+    XCTAssertEqual(reminder.value as? String, "0")
+    reminder.tap()
+    let system = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    let permission = system.alerts.firstMatch
+    XCTAssertTrue(permission.waitForExistence(timeout: 15), system.debugDescription)
+    XCTAssertTrue(permission.label.contains("Notifications"), system.debugDescription)
+    permission.buttons["Don’t Allow"].tap()
+    let systemSettings = app.buttons["打开系统通知设置"]
+    XCTAssertTrue(systemSettings.waitForExistence(timeout: 15), app.debugDescription)
+    XCTAssertEqual(reminder.value as? String, "0", "Denying permission must not turn reminders on.")
+    reveal(systemSettings)
+    systemSettings.tap()
+    let preferences = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+    XCTAssertTrue(preferences.wait(for: .runningForeground, timeout: 15), preferences.debugDescription)
+    let allow = preferences.switches["ALLOW_NOTIFICATIONS_ID"]
+    if !allow.waitForExistence(timeout: 5) {
+      // The iOS 26.4 simulator can open Settings home for the documented URL.
+      // Follow the same visible route available to a user; do not alter permission storage.
+      if !preferences.buttons["NOTIFICATIONS"].exists {
+        XCTAssertTrue(preferences.navigationBars["Settings"].exists, preferences.debugDescription)
+        let apps = preferences.buttons["com.apple.settings.apps"]
+        for _ in 0..<4 {
+          if apps.exists && apps.isHittable { break }
+          preferences.swipeUp()
+        }
+        XCTAssertTrue(apps.exists && apps.isHittable, preferences.debugDescription)
+        apps.tap()
+        let appEntry = preferences.buttons["com.lalema.lalema"]
+        XCTAssertTrue(appEntry.waitForExistence(timeout: 10), preferences.debugDescription)
+        appEntry.tap()
+      }
+      let notifications = preferences.buttons["NOTIFICATIONS"]
+      XCTAssertTrue(notifications.waitForExistence(timeout: 10), preferences.debugDescription)
+      notifications.tap()
+      print("NOTIFICATION_SETTINGS_PATH=manual-apps")
+    } else {
+      print("NOTIFICATION_SETTINGS_PATH=direct")
+    }
+    XCTAssertTrue(allow.waitForExistence(timeout: 10), preferences.debugDescription)
+    XCTAssertEqual(allow.value as? String, "0")
+    // Settings exposes a labelled row and an inner physical switch.
+    allow.switches.firstMatch.tap()
+    let permissionEnabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "1"), object: allow)
+    XCTAssertEqual(XCTWaiter.wait(for: [permissionEnabled], timeout: 5), .completed, preferences.debugDescription)
+    app.activate()
+    let sendTest = app.buttons["发送测试提醒"]
+    XCTAssertTrue(sendTest.waitForExistence(timeout: 15), app.debugDescription)
+    XCTAssertEqual(reminder.value as? String, "0", "System permission alone must not enable daily reminders.")
+    reveal(reminder, upward: false)
+    reminder.tap()
+    let scheduled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@ AND label CONTAINS %@", "1", "已安排"), object: reminder)
+    XCTAssertEqual(XCTWaiter.wait(for: [scheduled], timeout: 15), .completed, app.debugDescription)
+    reveal(sendTest)
+    sendTest.tap()
+    XCUIDevice.shared.press(.home)
+    let background = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+      self.app.state == .runningBackground || self.app.state == .runningBackgroundSuspended
+    }, object: nil)
+    XCTAssertEqual(XCTWaiter.wait(for: [background], timeout: 5), .completed, "App state after Home: \(app.state.rawValue)")
+    let notification = system.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "测试提醒")).firstMatch
+    XCTAssertTrue(notification.waitForExistence(timeout: 15), system.debugDescription)
+    let genericBody = system.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "有空时，记下今天的情况。按自己的节奏来。")).firstMatch
+    XCTAssertTrue(genericBody.exists, system.debugDescription)
+    let delivered = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    delivered.name = "Real test notification delivered while app is in background"
+    delivered.lifetime = .keepAlways
+    add(delivered)
+    notification.tap()
+    XCTAssertTrue(app.wait(for: .runningForeground, timeout: 15), system.debugDescription)
+    XCTAssertTrue(reminder.waitForExistence(timeout: 15), app.debugDescription)
+    XCTAssertEqual(reminder.value as? String, "1")
+    reveal(reminder, upward: false)
+    reminder.tap()
+    let disabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@ AND label CONTAINS %@", "0", "已关闭"), object: reminder)
+    XCTAssertEqual(XCTWaiter.wait(for: [disabled], timeout: 15), .completed, app.debugDescription)
+    app.terminate()
+    app.launch()
+    XCTAssertTrue(settings.waitForExistence(timeout: 30), app.debugDescription)
+    settings.tap()
+    XCTAssertTrue(reminder.waitForExistence(timeout: 15), app.debugDescription)
+    XCTAssertEqual(reminder.value as? String, "0", "Disabling reminders must survive restart.")
   }
 
   private func reveal(_ element: XCUIElement, upward: Bool = true) {

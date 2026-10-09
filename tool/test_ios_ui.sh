@@ -2,6 +2,14 @@
 # Always creates a fresh disposable simulator; never accepts an existing device.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Notification authorization persists outside the app process. Each scenario
+# therefore starts on its own new device, including in the default full suite.
+if [[ -z "${LALEMA_UI_TEST:-}" ]]; then
+  for qa_case in testRecordPersistsAndBackupRestoresThroughSystemFiles testFirstNotificationApprovalPersists testReminderPermissionRecoveryAndDelivery; do
+    LALEMA_UI_TEST="$qa_case" bash tool/test_ios_ui.sh
+  done
+  exit 0
+fi
 qa_flutter="${LALEMA_FLUTTER:-flutter}"
 qa_runtime="${LALEMA_UI_RUNTIME:-com.apple.CoreSimulator.SimRuntime.iOS-26-4}"
 qa_type="${LALEMA_UI_DEVICE_TYPE:-com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro}"
@@ -28,8 +36,12 @@ printf '%s\n' "$qa_build" > "$qa_results/build-path.txt"
 printf 'UI test results: %s\n' "$qa_results"
 "$qa_flutter" build ios --simulator --debug --no-pub --target lib/main.dart > "$qa_results/flutter-build.log" 2>&1
 xcrun simctl bootstatus "$qa_device" -b
+qa_test_args=(test)
+if [[ -n "${LALEMA_UI_TEST:-}" ]]; then
+  qa_test_args=("-only-testing:RunnerUITests/RunnerUITests/$LALEMA_UI_TEST" test)
+fi
 xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner-UI -configuration Debug \
   -destination "platform=iOS Simulator,id=$qa_device" \
   -parallel-testing-enabled NO \
   -derivedDataPath "$qa_build" -resultBundlePath "$qa_results/results.xcresult" \
-  CODE_SIGNING_ALLOWED=NO FLUTTER_BUILD_MODE=debug test
+  CODE_SIGNING_ALLOWED=NO FLUTTER_BUILD_MODE=debug "${qa_test_args[@]}"

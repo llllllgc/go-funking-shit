@@ -25,6 +25,8 @@ Future<AppSession> _loadSession() async {
   final reminders = ReminderController(
     const NativeReminderService(),
     canInteract: () => privacy.allowsInteraction(privacy.accessEpoch),
+    interactionEpoch: () => privacy.accessEpoch,
+    waitForInteraction: privacy.waitForInteraction,
   );
   final log = BowelLogController(
     repository,
