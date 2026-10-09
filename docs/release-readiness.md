@@ -69,7 +69,9 @@ CI 维护：1.6.0 已将 checkout / setup-java 升级至 Node 24 的 v5 并固�
 
 - 本地 `flutter analyze --no-pub` 无问题，`flutter test --no-pub --reporter expanded` 共 68 项通过。
 - 2 项视觉截图流程通过；已检查数据管理、导入预览与确认布局，截图为合成记录。
-- 正常入口 `lib/main.dart` 的 iOS Debug 模拟器构建通过；独立模拟器实际呈现了原生保存与 JSON 选择面板。验证后恢复正常应用入口，探针不读取用户数据库，也不作为应用交付。
+- 正常入口 `lib/main.dart` 的 iOS Debug 模拟器与未签名 ARM64 Release 构建通过，Info.plist 验证版本为 1.6.0+7；独立模拟器实际呈现了原生保存与 JSON 选择面板。验证后恢复正常应用入口，探针不读取用户数据库，也不作为应用交付。
 - Android 1.6.0 构建停在新插件依赖下载，终端显示 Maven/Google 仓库 TLS 握手失败；这与旧版 1.5.0 构建成功是不同结论。
 - 本轮 CI 配置升级尚未得到远程运行证据；新提交是否已推送以 Git 状态和 PR 为准，不沿用 1.5.0 的绿色检查来代表 1.6.0。
 - 完整平台文件提供者的保存—重新选取—导入，以及 Android / 真机行为仍待验收。备份协议和测试范围见 [data-portability.md](data-portability.md)。
+
+同步证据：功能提交 `05e5e1f` 已成功推送到 fork 的 `main`，输出确认远程从 `44fdf41` 前进到该提交；[工作流 37877489823](https://github.com/ninjaz0/go-funking-shit/actions/runs/37877489823) 曾读取到 `in_progress`。此后 HTTPS 再次失败，暂未核验最终 CI 结果或 PR 说明更新。下一轮继续读取这一运行记录，不因观察失败重建运行。
