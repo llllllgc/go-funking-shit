@@ -43,6 +43,6 @@ flutter build ios --simulator --debug --no-pub -t lib/main.dart
 # 验证后恢复正常构建；探针产物不能当作应用交付。
 ```
 
-原生面板呈现、文件适配层测试和真实数据库测试是不同层面的证据。仍需在真实 Android/iPhone 上验收完整的本地/云盘保存—选取—恢复流程、权限拒绝、提供者离线和应用中断。
+原生面板呈现、文件适配层测试和真实数据库测试是不同层面的证据。[iOS XCTest 界面回归](ios-ui-tests.md)另行覆盖正常入口下的本地保存—清空—选取—恢复、取消选择后重新打开，以及重复导入保护。仍需在真实 Android/iPhone 上验收本地/云盘流程、权限拒绝、提供者离线和应用中断。
 
 文件选择 API 依据：[file_picker 官方文档](https://pub.dev/packages/file_picker)、[保存文件 API](https://pub.dev/documentation/file_picker/latest/file_picker/FilePicker/saveFile.html)。

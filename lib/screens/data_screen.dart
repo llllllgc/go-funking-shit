@@ -144,7 +144,7 @@ class _DataScreenState extends State<DataScreen> {
       widget.controller.now,
     ));
     if (mounted) setState(() => _pending = archive);
-    _feedback('备份已读取，请核对预览后确认导入。');
+    _feedback('备份已读取，请核对预览中的新增、重复和冲突数量。');
   });
 
   Future<void> _import() => _run(() async {
