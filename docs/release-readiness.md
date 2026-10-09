@@ -15,9 +15,9 @@
 | 提醒 | 可选本地提醒、默认关闭、权限拒绝可继续使用、关闭/时区变化可靠 | 待实施 |
 | 可访问性 | 320/375/414/768 宽度、横屏、大字；可触达按钮、语义、返回/键盘、减少动画 | 四种宽度、320px 双倍字号全页面、横屏细节流程已通过；真机读屏仍待验收 |
 | 内容 | 知识来源可追溯、明确自我记录边界，无诊断或未经验证的因果推断 | 待逐项复核 |
-| 自动检查 | 固定 SDK，分析、格式检查、单元/界面/数据库回归在 CI 运行 | 已配置工作流，待远程运行验证 |
-| Android 交付 | Release 构建通过；发布签名配置独立于调试签名；安装、升级、权限/数据保留验收 | 待验证；正式签名材料由所有者提供 |
-| iOS 交付 | Release 与模拟器构建；启动/操作/升级验证；隐私声明、部署版本；分发签名 | Debug 模拟器构建和独立模拟器首启已验证；Release/真机完整流程/分发签名待完成 |
+| 自动检查 | 固定 SDK，分析、格式检查、单元/界面/数据库回归在 CI 运行 | 代码提交 e48f5c3 的远程分析/测试、Android Debug、iOS 模拟器构建全部通过 |
+| Android 交付 | Release 构建通过；发布签名配置独立于调试签名；安装、升级、权限/数据保留验收 | 本地 Debug APK 构建通过，包版本已核对为 1.5.0+6；正式签名、安装/升级验收待完成 |
+| iOS 交付 | Release 与模拟器构建；启动/操作/升级验证；隐私声明、部署版本；分发签名 | Debug 模拟器构建和独立模拟器首启已验证；ARM64 未签名 Release 构建通过；真机完整流程/分发签名待完成 |
 | 发布材料 | 使用说明、隐私政策、版本说明、截图、已知限制、复现验证命令 | 待准备 |
 
 ## 本轮实施顺序
@@ -43,8 +43,13 @@
 - `TZ=Pacific/Auckland flutter test --no-pub test/backfill_controller_test.dart test/bowel_log_controller_test.dart test/sqlite_repository_test.dart`：时区回归通过，包含跨夏令时的连续自然日。
 - `flutter test --no-pub tool/visual_capture_test.dart --update-goldens`：通过并生成截图，已检查记录页及展开细节状态。截图保存在忽略目录 `tool/captures/`，均为虚构演示内容。
 - `flutter build ios --simulator --debug --no-pub`：构建通过；新建独立模拟器 `Lalema Release QA` 后安装和启动成功，已检查原生运行首页截图。iOS 最低部署版本由 13 调整为 15，以匹配 Xcode 27 的构建要求。
-- Android 首次构建正在补齐 SDK 36 / NDK 28.2 / CMake 3.22.1；是否通过以随后结果为准。
+- `flutter build apk --debug --no-pub`：成功；补齐 Android SDK 36 / NDK 28.2 / CMake 3.22.1 后再次构建，`aapt dump badging` 验证版本 `1.5.0+6`（min SDK 24、target SDK 36）。产物 `build/app/outputs/flutter-apk/app-debug.apk`，SHA-256 `e584aae41aaa0691051f846d2b48c712e67e94656c6f90a5a2cfbf96d073679d`。这是调试包，不是商店签名包。
+- `flutter build ios --release --no-codesign --no-pub`：成功；验证 Info.plist 版本 `1.5.0`，可执行文件为 ARM64。未签名产物不能直接用于真机安装或商店提交。
+- 独立 iOS 模拟器原生 SQLite 数据库确认 `user_version=2`，包含 `note` 与 `discomforts` 字段；重复启动成功。对该测试库做可逆损坏注入后，原生界面显示重试提示而非白屏；恢复前后 SHA-256 一致，重新启动回到首页。用户数据库未参与此实验。
+- [代码提交 e48f5c3 的远程检查](https://github.com/ninjaz0/go-funking-shit/actions/runs/37873794028)：Analyze and test、Android Debug、iOS 模拟器构建全部成功。
 
 真实数据库测试使用维护者推荐的 [sqflite_common_ffi](https://github.com/tekartik/sqflite/blob/master/sqflite_common_ffi/doc/testing.md) 方式，测试数据库均在系统临时目录，结束后清理，不读写用户数据。
 
 以上是开发阶段证据，不等于商店发布认证或全平台真机验收。数据导出/恢复、隐私与提醒仍是未完成的功能范围。
+
+后续 CI 维护：远程检查提示 checkout / setup-java 的 Node 20 版本已弃用，且 ubuntu-latest 将迁移；下一轮升级固定 SHA 并固定 runner 版本。当前检查实际通过，这项仍需在发布前处理。
