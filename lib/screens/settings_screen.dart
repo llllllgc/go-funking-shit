@@ -1,3 +1,4 @@
+import 'about_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../application/privacy_controller.dart';
@@ -21,7 +22,24 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: privacy,
     builder: (context, _) => Scaffold(
-      appBar: AppBar(title: Text('设置与隐私', style: pixelStyle(size: 20))),
+      appBar: AppBar(
+        title: Text(
+          '设置与隐私',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: pixelStyle(size: 20),
+        ),
+        actions: [
+          IconButton(
+            key: const Key('settings-about'),
+            tooltip: '帮助与关于',
+            icon: const Icon(Icons.help_outline),
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(builder: (_) => const AboutScreen()),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(

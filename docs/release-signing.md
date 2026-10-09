@@ -24,3 +24,10 @@ Debug 构建用于开发和测试。Release 从 `android/key.properties` 读取�
 - 已建立 Android 独立发布签名配置，并验证缺失配置时拒绝 Release。
 - 已完成调试和未签名 iOS 构建验证，具体版本以 `release-readiness.md` 为准。
 - 尚未使用正式发布密钥或进行商店提交，不自动合并 PR 或发布应用。
+
+
+## 应用标识与发布主体
+
+当前 Android applicationId / iOS Bundle ID 为 `com.lalema.lalema`。正式分发前需由发布者确认这一标识的注册与使用安排，并与既有版本的签名保持一致。另行分发 fork 时，不应在没有迁移计划的情况下随意改变已有安装的标识或签名。
+
+发布者信息集中在 `assets/content/publishing.json`；公开政策与支持页面需实际验证可访问性，填写字段本身不等于通过审核。
