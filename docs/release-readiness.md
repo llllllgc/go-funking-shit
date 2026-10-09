@@ -161,6 +161,6 @@ Android Debug、iOS Debug 模拟器与 iOS 未签名 ARM64 Release 均构建成�
 
 2026-10-09 最终本地证据：静态分析无问题，**129 项 Flutter 测试、6 项 Android 原生测试、3 项 iOS 原生测试通过**，7 项视觉流程通过；检查了 375px 和 320px 双倍字号下的来源呈现。iOS 原生结果位于 `build/native-test-results/run.Q0VfQ8/results.xcresult`。源链接探针结果在忽略目录 `tool/captures/source-link-native-result.json`。
 
-正常入口的 Android Debug、iOS Debug 模拟器及 iOS 未签名 ARM64 Release 构建成功，版本 **1.10.0+12**；构建目标已恢复为 lib/main.dart。Android 包 `build/deliverables/lalema-1.10.0+12-debug.apk`，SHA-256 `95339d640d5714b138f77effdb4ad0040a3d5acf453f813a70984055e1619590`。本次新增 url_launcher 官方插件，其他已有依赖未主动升级。
+正常入口的 Android Debug、iOS Debug 模拟器及 iOS 未签名 ARM64 Release 构建成功，版本 **1.10.0+12**；构建目标已恢复为 lib/main.dart。Android 包 `build/deliverables/lalema-1.10.0+12-debug.apk`，SHA-256 `f38a8b3480cbf5fcdc4eb8a2519937f20ba5a8b7522eed5791b14e72f5f74900`。本次新增 url_launcher 官方插件，其他已有依赖未主动升级。
 
 仍需通知实际送达/权限/重启/时区、文件提供者、身份验证、读屏等设备验收，以及正式签名、隐私政策/分发材料的最终确认；整体目标保持进行中。本次远程 CI 单独核验，不沿用前一版结果。

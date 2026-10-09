@@ -113,11 +113,11 @@ abstract final class KnowledgeBase {
     KnowledgeTip(
       id: 'bristol-middle',
       category: KnowledgeCategory.shape,
-      title: '形态是观察信息，不是健康评分',
-      summary: 'Bristol 分类用于描述外观。成形、柔软的记录，也不能用来排除其他身体问题。',
+      title: '把形态和感受一起记下',
+      summary: 'Bristol 分类帮助描述外观。把形态、时间和伴随感受一起记下，方便回顾与沟通。',
       details: [
-        '3 型表面可有裂纹，4 型较光滑、柔软；1～2 型偏硬，6～7 型偏松散或水样。',
-        '无论哪种形态，都要结合伴随不适；有便血等变化时应联系医生。',
+        '3 型表面可有裂纹，4 型较光滑、柔软，5 型是边缘清晰的柔软小块。',
+        '形态不能单独评估身体状况。出现便血等变化时，请联系医生。',
       ],
       sources: [bristol, giBleeding],
       tags: ['Bristol', '形态'],
