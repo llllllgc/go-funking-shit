@@ -155,6 +155,96 @@ void main() {
     expect(await repository.loadAll(), hasLength(1));
   });
 
+  test(
+    'import is idempotent, keeps conflicts, persists and clears all details',
+    () async {
+      final repository = await open();
+      final local = await repository.create(
+        4,
+        details: const RecordDetails(note: '本机备注'),
+      );
+      final incoming = BowelRecord(
+        recordId: 'import-id',
+        bristolType: 2,
+        recordedAt: now,
+        updatedAt: now,
+        details: const RecordDetails(note: '导入备注', discomfortMask: 5),
+      );
+      final conflict = BowelRecord(
+        recordId: local.recordId,
+        bristolType: 7,
+        recordedAt: now,
+        updatedAt: now,
+      );
+      final first = await repository.importRecords([local, incoming]);
+      expect(first.additions.single.recordId, incoming.recordId);
+      expect(first.duplicates, 1);
+      final second = await repository.importRecords([conflict, incoming]);
+      expect(second.additions, isEmpty);
+      expect(second.conflicts, 1);
+      expect(second.duplicates, 1);
+      await repository.close();
+      final reopened = await open();
+      final records = await reopened.loadAll();
+      expect(records, hasLength(2));
+      expect(
+        records.firstWhere((r) => r.recordId == local.recordId).details.note,
+        '本机备注',
+      );
+      expect(
+        records.firstWhere((r) => r.recordId == incoming.recordId).toMap(),
+        incoming.toMap(),
+      );
+      expect(await reopened.deleteAll(), 2);
+      expect(await reopened.loadAll(), isEmpty);
+    },
+  );
+
+  test(
+    'import snapshots input and preserves note whitespace after reopening',
+    () async {
+      final repository = await open();
+      final original = BowelRecord(
+        recordId: 'raw-note',
+        bristolType: 4,
+        recordedAt: now,
+        updatedAt: now,
+        details: const RecordDetails(note: '  note\n  '),
+      );
+      final input = [original];
+      final pending = repository.importRecords(input);
+      input.clear();
+      expect((await pending).additions, hasLength(1));
+      await repository.close();
+      final reopened = await open();
+      expect((await reopened.loadAll()).single.toMap(), original.toMap());
+    },
+  );
+
+  test('failed multi-record import rolls back every insertion', () async {
+    final repository = await open();
+    final original = await repository.create(4);
+    // Trigger a real SQLite failure after the first row of the batch succeeds.
+    final db = await databaseFactoryFfi.openDatabase(databasePath);
+    await db.execute(
+      "CREATE TRIGGER reject_import BEFORE INSERT ON bowel_records WHEN NEW.recordId = 'fail' BEGIN SELECT RAISE(ABORT, 'test failure'); END",
+    );
+    final records = [
+      for (final id in ['ok', 'fail'])
+        BowelRecord(
+          recordId: id,
+          bristolType: 4,
+          recordedAt: now,
+          updatedAt: now,
+        ),
+    ];
+    await expectLater(
+      repository.importRecords(records),
+      throwsA(isA<DatabaseException>()),
+    );
+    expect((await repository.loadAll()).single.toMap(), original.toMap());
+  });
+
   test('reads legacy maps and rejects malformed details', () {
     final map = <String, Object>{
       'recordId': 'id',

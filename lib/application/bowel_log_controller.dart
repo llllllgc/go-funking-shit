@@ -1,3 +1,4 @@
+import '../domain/record_transfer.dart';
 import '../domain/record_details.dart';
 import 'dart:async';
 
@@ -271,6 +272,44 @@ class BowelLogController extends ChangeNotifier {
     } catch (_) {
       _errorMessage = failureMessage;
       return null;
+    } finally {
+      _endAction();
+    }
+  }
+
+  Future<ImportPlan?> importRecords(List<BowelRecord> records) async {
+    if (_isWorking || _isLoading || !_hasLoaded) return null;
+    _beginAction();
+    try {
+      final result = await _repository.importRecords(records);
+      // The transaction has already committed. Do not turn a subsequent read
+      // failure into a misleading import error and invite duplicate retries.
+      _records = [..._records, ...result.additions];
+      _sortRecords();
+      _deletedRecords.clear();
+      _currentDate = dateOnly(_now());
+      _feedbackMessage = '已导入 ${result.additions.length} 条记录';
+      return result;
+    } catch (_) {
+      _errorMessage = '没有导入成功，已有记录未更改，请再试一次';
+      return null;
+    } finally {
+      _endAction();
+    }
+  }
+
+  Future<bool> clearAllRecords() async {
+    if (_isWorking || _isLoading || !_hasLoaded) return false;
+    _beginAction();
+    try {
+      await _repository.deleteAll();
+      _records = const [];
+      _deletedRecords.clear();
+      _feedbackMessage = '本机记录已清空';
+      return true;
+    } catch (_) {
+      _errorMessage = '没有清空成功，请再试一次';
+      return false;
     } finally {
       _endAction();
     }

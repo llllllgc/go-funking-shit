@@ -1,3 +1,4 @@
+import 'package:lalema/domain/record_transfer.dart';
 import 'package:lalema/domain/record_details.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -123,6 +124,13 @@ class _ResponsiveRepository implements BowelRecordRepository {
     DateTime? recordedAt,
     RecordDetails details = const RecordDetails(),
   }) => throw UnimplementedError();
+
+  @override
+  Future<ImportPlan> importRecords(List<BowelRecord> records) =>
+      throw UnimplementedError();
+
+  @override
+  Future<int> deleteAll() => throw UnimplementedError();
 
   @override
   Future<void> delete(String recordId) => throw UnimplementedError();

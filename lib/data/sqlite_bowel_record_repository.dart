@@ -1,3 +1,5 @@
+import '../domain/record_transfer.dart';
+import 'record_archive.dart';
 import '../domain/record_details.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
@@ -156,6 +158,29 @@ class SqliteBowelRecordRepository implements BowelRecordRepository {
       conflictAlgorithm: ConflictAlgorithm.abort,
     );
   }
+
+  @override
+  Future<ImportPlan> importRecords(List<BowelRecord> records) async {
+    final incoming = List<BowelRecord>.unmodifiable(records);
+    RecordArchiveCodec.validateRecords(incoming, now: _now());
+    return _database.transaction((txn) async {
+      final local = (await txn.query(_table)).map(BowelRecord.fromMap).toList();
+      final plan = ImportPlan.compare(local, incoming);
+      final batch = txn.batch();
+      for (final record in plan.additions) {
+        batch.insert(
+          _table,
+          record.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      await batch.commit(noResult: true);
+      return plan;
+    });
+  }
+
+  @override
+  Future<int> deleteAll() => _database.delete(_table);
 
   void _requireValidType(int value) {
     if (value < 1 || value > 7) {

@@ -34,7 +34,7 @@ class BowelRecord {
       details: RecordDetails(
         note: map['note'] as String? ?? '',
         discomfortMask: map['discomforts'] as int? ?? 0,
-      ).validated(),
+      ).validated(trimNote: false),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updatedAt']! as int),
     );
   }

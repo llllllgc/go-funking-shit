@@ -9,6 +9,7 @@ import 'core/formatters.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'screens/history_screen.dart';
+import 'screens/data_screen.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/knowledge_screen.dart';
 import 'screens/record_screen.dart';
@@ -117,6 +118,16 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> _openData() async {
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    widget.controller.clearFeedback();
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => DataScreen(controller: widget.controller),
+      ),
+    );
+  }
+
   Future<void> _backfillYesterday() async {
     final now = widget.controller.now;
     await _openRecord(initialDate: DateTime(now.year, now.month, now.day - 1));
@@ -151,6 +162,7 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
       onEdit: (id) => _openRecord(recordId: id),
       onCalendar: () => _openCalendar(widget.controller.currentDate),
       onBackfill: _backfillYesterday,
+      onData: _openData,
     );
   }
 }

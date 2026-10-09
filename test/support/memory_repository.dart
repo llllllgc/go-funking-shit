@@ -1,3 +1,5 @@
+import 'package:lalema/data/record_archive.dart';
+import 'package:lalema/domain/record_transfer.dart';
 import 'package:lalema/domain/record_details.dart';
 import 'dart:async';
 
@@ -59,6 +61,24 @@ class MemoryRepository implements BowelRecordRepository {
       updatedAt: now,
       details: (details ?? old.details).validated(),
     );
+  }
+
+  @override
+  Future<ImportPlan> importRecords(List<BowelRecord> incoming) async {
+    if (writeGate != null) await writeGate!.future;
+    if (failWrites) throw StateError('Write failed');
+    RecordArchiveCodec.validateRecords(incoming, now: now);
+    final plan = ImportPlan.compare(records, incoming);
+    records.addAll(plan.additions);
+    return plan;
+  }
+
+  @override
+  Future<int> deleteAll() async {
+    if (failWrites) throw StateError('Write failed');
+    final count = records.length;
+    records.clear();
+    return count;
   }
 
   @override

@@ -24,12 +24,15 @@ class RecordDetails {
   bool contains(Discomfort value) => discomfortMask & value.bit != 0;
   Iterable<Discomfort> get discomforts => Discomfort.values.where(contains);
 
-  RecordDetails validated() {
+  RecordDetails validated({bool trimNote = true}) {
     if (note.characters.length > maxNoteLength ||
         discomfortMask < 0 ||
         discomfortMask > 15) {
       throw ArgumentError('Invalid optional record details');
     }
-    return RecordDetails(note: note.trim(), discomfortMask: discomfortMask);
+    return RecordDetails(
+      note: trimNote ? note.trim() : note,
+      discomfortMask: discomfortMask,
+    );
   }
 }

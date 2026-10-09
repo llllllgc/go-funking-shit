@@ -25,6 +25,7 @@ class HistoryScreen extends StatelessWidget {
     required this.onEdit,
     required this.onCalendar,
     required this.onBackfill,
+    required this.onData,
     super.key,
   });
 
@@ -34,6 +35,7 @@ class HistoryScreen extends StatelessWidget {
   final ValueChanged<String> onEdit;
   final VoidCallback onCalendar;
   final VoidCallback onBackfill;
+  final VoidCallback onData;
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +95,18 @@ class HistoryScreen extends StatelessWidget {
                             ),
                           ),
                         ],
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          key: const Key('history-data'),
+                          onPressed: controller.isWorking ? null : onData,
+                          icon: const Icon(
+                            Icons.folder_open_outlined,
+                            size: 20,
+                          ),
+                          label: const Text('备份、导出与恢复'),
+                        ),
                       ),
                       Padding(
                         padding: const EdgeInsets.only(top: 8, bottom: 20),

@@ -1,3 +1,4 @@
+import 'package:lalema/domain/record_transfer.dart';
 import 'package:lalema/domain/record_details.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lalema/application/bowel_log_controller.dart';
@@ -166,6 +167,13 @@ class _MemoryRepository implements BowelRecordRepository {
     records.add(record);
     return record;
   }
+
+  @override
+  Future<ImportPlan> importRecords(List<BowelRecord> records) =>
+      throw UnimplementedError();
+
+  @override
+  Future<int> deleteAll() => throw UnimplementedError();
 
   @override
   Future<void> delete(String recordId) async {

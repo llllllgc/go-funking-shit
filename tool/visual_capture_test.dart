@@ -1,3 +1,8 @@
+import 'package:lalema/screens/data_screen.dart';
+import 'package:lalema/data/backup_files.dart';
+import 'package:lalema/data/record_archive.dart';
+import 'package:lalema/core/theme/app_theme.dart';
+import 'package:lalema/domain/record_transfer.dart';
 import 'package:lalema/domain/record_details.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,6 +22,49 @@ void main() {
     final materialFont = FontLoader('MaterialIcons')
       ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
     await Future.wait([pixelFont.load(), bodyFont.load(), materialFont.load()]);
+  });
+
+  testWidgets('capture backup import preview', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(375, 812);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final now = DateTime(2026, 9, 19, 14, 32);
+    final controller = BowelLogController(
+      _CaptureRepository(now),
+      now: () => now,
+    );
+    await controller.initialize();
+    const captureKey = Key('data-capture');
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: captureKey,
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          home: DataScreen(controller: controller, files: _PreviewFiles(now)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('backup-pick')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('backup-pick')));
+    await tester.pump();
+    for (var attempt = 0; attempt < 100; attempt++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+      if (find.byType(LinearProgressIndicator).evaluate().isEmpty) break;
+    }
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('backup-import')));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(captureKey),
+      matchesGoldenFile('captures/data_import_preview_375.png'),
+    );
   });
 
   testWidgets('capture active screens at 375x812', (tester) async {
@@ -98,6 +146,21 @@ void main() {
       matchesGoldenFile('captures/history_375.png'),
     );
 
+    await tester.tap(find.byKey(const Key('history-data')));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(captureKey),
+      matchesGoldenFile('captures/data_management_375.png'),
+    );
+    await tester.ensureVisible(find.byKey(const Key('backup-pick')));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(captureKey),
+      matchesGoldenFile('captures/data_restore_375.png'),
+    );
+    await tester.tap(find.byKey(const Key('data-back')));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.byTooltip('查看月历'));
     await tester.pumpAndSettle();
     await tester.tap(
@@ -146,6 +209,13 @@ class _CaptureRepository implements BowelRecordRepository {
   }) => throw UnimplementedError();
 
   @override
+  Future<ImportPlan> importRecords(List<BowelRecord> records) =>
+      throw UnimplementedError();
+
+  @override
+  Future<int> deleteAll() => throw UnimplementedError();
+
+  @override
   Future<void> delete(String recordId) => throw UnimplementedError();
 
   @override
@@ -169,3 +239,25 @@ BowelRecord _record(String id, int type, DateTime time) => BowelRecord(
   recordedAt: time,
   updatedAt: time,
 );
+
+class _PreviewFiles implements BackupFiles {
+  _PreviewFiles(this.now);
+  final DateTime now;
+  @override
+  Future<Uint8List?> pickBackup() async => RecordArchiveCodec.encode(
+    RecordArchive(
+      exportedAt: now,
+      records: [
+        _record('record-1', 4, now),
+        _record('record-2', 7, now.subtract(const Duration(days: 1))),
+        _record('backup-new', 3, now.subtract(const Duration(days: 5))),
+      ],
+    ),
+  );
+  @override
+  Future<bool> save({
+    required String name,
+    required Uint8List bytes,
+    required String mimeType,
+  }) async => false;
+}

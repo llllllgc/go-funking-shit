@@ -15,3 +15,6 @@ key.properties
 
 # Kotlin build cache
 .kotlin/
+
+# Local Gradle diagnostics and intermediate output
+build/
