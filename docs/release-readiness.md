@@ -173,15 +173,15 @@ Android Debug、iOS Debug 模拟器与 iOS 未签名 ARM64 Release 均构建成�
 - 设置页新增“帮助与关于”；显示实际安装包版本，复制内容仅含应用和平台信息。版本读取失败不阻塞离线帮助，文档读取失败可重试。
 - 使用帮助、隐私与数据说明及版本更新来自随包 JSON；Markdown/HTML 从同一份内容生成，CI 校验一致性。不是手写两份各自漂移的政策。
 - 组件许可页与字体出处可直接访问。当前项目未声明整体许可证，Zpix 官方区分个人/教育和商业授权，视觉资源缺少逐项分发说明；记录在 [资源出处](release/asset-provenance.md)，不能据此假定商业分发权已确认。
-- 发布者名称、支持联系方式已向所有者询问，尚未填入假数据。当前隐私政策明确标记为草案；`--require-publisher` 检查预期失败。源文件与生成方法见 [发布资料](release/README.md)。
+- 发布者名称、支持联系方式已向所有者询问，尚未填入假数据。另已核验 fork 为私有仓库，匿名政策链接返回 404，因此公开政策 URL 保持未配置，需要独立公开托管。当前隐私政策明确标记为草案；`--require-publisher` 检查预期失败。源文件与生成方法见 [发布资料](release/README.md)。
 - 商店简介、审核备注和截图规范均有草案；没有提交商店、启用反馈服务、合并 PR 或公开部署网页。
 
-2026-10-09 本地最终证据：静态分析无问题，完整 Flutter 回归 **141 项通过**，Android 原生 **6 项通过**，iOS 原生 **3 项通过**。iOS 原生结果为 `build/native-test-results/run.wo9FjE/results.xcresult`。文档一致性检查通过，发布者完整性检查因缺少名称与支持方式而按预期失败。
+2026-10-09 本地最终证据：静态分析无问题，完整 Flutter 回归 **141 项通过**，Android 原生 **6 项通过**，iOS 原生 **3 项通过**。iOS 原生结果为 `build/native-test-results/run.wo9FjE/results.xcresult`。文档一致性检查通过，发布者完整性检查因缺少名称、支持方式和公开政策地址而按预期失败。
 
 已生成两种 iPhone 尺寸共 **14 张原生 JPEG 截图草案**（1206×2622、1320×2868，无 alpha），使用合成记录、生产页面和真实字体。采集中的路由/初始化错误已修复，最终元数据均报告无渲染错误和有效顶部安全区；以最终清单与图片为准，不把旧错误图计入交付。正常入口已恢复安装，状态栏覆盖已清除，隔离模拟器已关闭。版本读取在两台模拟器均确认为 **1.11.0（13）**。
 
 隐私 HTML 在手机尺寸浏览器中查看，375px 宽度没有横向溢出；仍明确标记为发布草案。Android Debug 与 iOS 未签名 ARM64 Release 构建成功，正式入口为 lib/main.dart，版本 **1.11.0+13**。APK 内包含说明资源和许可声明，iOS Release 不含 debugStatus 诊断入口。
 
-Android 测试包 `build/deliverables/lalema-1.11.0+13-debug.apk`，SHA-256 `598fe9b91d366d3999baa00661a8e81831f68b39018408dafc11fcf3d1e09084`。发布资料包另存于 `build/deliverables/lalema-1.11.0-release-materials.zip`，包含同源文档、商店草案、截图清单及预览入口。
+Android 测试包 `build/deliverables/lalema-1.11.0+13-debug.apk`，SHA-256 `71c44b3ea7879d626a7d1c0075010e135535b2bad1f900275c8d774edbff423f`。发布资料包另存于 `build/deliverables/lalema-1.11.0-release-materials.zip`，包含同源文档、商店草案、截图清单及预览入口。
 
 整体发布目标仍需发布者与联系方式、资产/源码授权确认、正式签名、完整设备流程验收。此次 CI 单独核验，不沿用前一版通过状态。

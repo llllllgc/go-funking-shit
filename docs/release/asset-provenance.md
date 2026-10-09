@@ -12,4 +12,4 @@
 
 当前 Zpix 文件 SHA-256：`4f5d731b71e389e757f7a2816b8d37470ff401ced2e96ab2a336db5ee41c03c7`。如需要记录采购或授权信息，应由发布者保管凭据；不要把付款凭据、私人合同或个人信息提交到公开仓库。
 
-已核对的仓库：[当前 fork](https://github.com/ninjaz0/go-funking-shit)、[上游](https://github.com/llllllgc/go-funking-shit)。当前 fork 未开启 Issues，本轮不把上游维护者或未启用的页面当作本版本的支持联系人。
+已核对的仓库：[当前 fork](https://github.com/ninjaz0/go-funking-shit)、[上游](https://github.com/llllllgc/go-funking-shit)。当前 fork 为私有仓库且未开启 Issues，本轮不把上游维护者或未启用的页面当作本版本的支持联系人。

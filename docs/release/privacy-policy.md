@@ -8,7 +8,7 @@
 
 支持与隐私联系：待发布者确认
 
-公开政策地址：https://github.com/ninjaz0/go-funking-shit/blob/main/docs/release/privacy-policy.md
+公开政策地址：待发布者确认
 
 ## 记录由你掌握
 
