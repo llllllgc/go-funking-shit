@@ -1,3 +1,4 @@
+import 'package:lalema/domain/record_details.dart';
 import 'dart:async';
 
 import 'package:lalema/data/bowel_record_repository.dart';
@@ -21,7 +22,11 @@ class MemoryRepository implements BowelRecordRepository {
   }
 
   @override
-  Future<BowelRecord> create(int bristolType, {DateTime? recordedAt}) async {
+  Future<BowelRecord> create(
+    int bristolType, {
+    DateTime? recordedAt,
+    RecordDetails details = const RecordDetails(),
+  }) async {
     createCalls++;
     if (writeGate != null) await writeGate!.future;
     if (failWrites) throw StateError('Write failed');
@@ -30,6 +35,7 @@ class MemoryRepository implements BowelRecordRepository {
       bristolType: bristolType,
       recordedAt: recordedAt ?? now,
       updatedAt: now,
+      details: details.validated(),
     );
     records.add(record);
     return record;
@@ -40,6 +46,7 @@ class MemoryRepository implements BowelRecordRepository {
     String recordId,
     int bristolType, {
     DateTime? recordedAt,
+    RecordDetails? details,
   }) async {
     if (failWrites) throw StateError('Write failed');
     final index = records.indexWhere((record) => record.recordId == recordId);
@@ -50,6 +57,7 @@ class MemoryRepository implements BowelRecordRepository {
       bristolType: bristolType,
       recordedAt: recordedAt ?? old.recordedAt,
       updatedAt: now,
+      details: (details ?? old.details).validated(),
     );
   }
 

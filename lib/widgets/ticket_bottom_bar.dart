@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -30,7 +32,10 @@ class TicketBottomBar extends StatelessWidget {
       top: false,
       child: SizedBox(
         width: double.infinity,
-        height: ticketBottomBarHeight,
+        height: math.max(
+          ticketBottomBarHeight,
+          92 + MediaQuery.textScalerOf(context).scale(12) * 16 / 12,
+        ),
         child: Stack(
           alignment: Alignment.topCenter,
           children: <Widget>[
@@ -44,7 +49,10 @@ class TicketBottomBar extends StatelessWidget {
               left: 0,
               right: 0,
               bottom: 0,
-              height: 76,
+              height: math.max(
+                76,
+                39 + MediaQuery.textScalerOf(context).scale(12) * 16 / 12,
+              ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: <Widget>[
@@ -97,7 +105,10 @@ class _NavItem extends StatelessWidget {
       selected: selected,
       onPressed: onPressed,
       child: SizedBox(
-        height: 64,
+        height: math.max(
+          64,
+          39 + MediaQuery.textScalerOf(context).scale(12) * 16 / 12,
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
@@ -177,7 +188,7 @@ class _RecordActionState extends State<_RecordAction> {
             duration: duration,
             child: SizedBox(
               width: 92,
-              height: 108,
+              height: 84 + MediaQuery.textScalerOf(context).scale(12) * 16 / 12,
               child: Column(
                 children: <Widget>[
                   SizedBox(

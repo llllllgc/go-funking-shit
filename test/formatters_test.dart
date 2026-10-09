@@ -14,10 +14,7 @@ void main() {
       '2025年9月18日 周四',
     );
     expect(
-      formatDeleteDate(
-        DateTime(2025, 9, 18, 7, 5),
-        referenceDate: reference,
-      ),
+      formatDeleteDate(DateTime(2025, 9, 18, 7, 5), referenceDate: reference),
       '2025年9月18日 07:05',
     );
   });

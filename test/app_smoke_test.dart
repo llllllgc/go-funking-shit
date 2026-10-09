@@ -1,3 +1,4 @@
+import 'package:lalema/domain/record_details.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lalema/app.dart';
 import 'package:lalema/application/bowel_log_controller.dart';
@@ -28,8 +29,11 @@ void main() {
 
 class _EmptyRepository implements BowelRecordRepository {
   @override
-  Future<BowelRecord> create(int bristolType, {DateTime? recordedAt}) =>
-      throw UnimplementedError();
+  Future<BowelRecord> create(
+    int bristolType, {
+    DateTime? recordedAt,
+    RecordDetails details = const RecordDetails(),
+  }) => throw UnimplementedError();
 
   @override
   Future<void> delete(String recordId) => throw UnimplementedError();
@@ -45,5 +49,6 @@ class _EmptyRepository implements BowelRecordRepository {
     String recordId,
     int bristolType, {
     DateTime? recordedAt,
+    RecordDetails? details,
   }) => throw UnimplementedError();
 }

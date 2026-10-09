@@ -1,3 +1,4 @@
+import 'package:lalema/domain/record_details.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,7 +14,9 @@ void main() {
       ..addFont(rootBundle.load('assets/fonts/zpix.ttf'));
     final bodyFont = FontLoader('Roboto')
       ..addFont(rootBundle.load('assets/fonts/zpix.ttf'));
-    await Future.wait([pixelFont.load(), bodyFont.load()]);
+    final materialFont = FontLoader('MaterialIcons')
+      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+    await Future.wait([pixelFont.load(), bodyFont.load(), materialFont.load()]);
   });
 
   testWidgets('capture active screens at 375x812', (tester) async {
@@ -71,7 +74,22 @@ void main() {
       matchesGoldenFile('captures/record_375.png'),
     );
 
-    Navigator.of(tester.element(find.text('更接近哪一种？'))).pop();
+    await tester.tap(find.text('添加细节（可选）'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('discomfort-bloating')));
+    await tester.enterText(
+      find.byKey(const PageStorageKey('record-note')),
+      '演示记录：早餐后感觉腹胀。',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(captureKey),
+      matchesGoldenFile('captures/record_details_375.png'),
+    );
+    await tester.tap(find.bySemanticsLabel('返回'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('放弃'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('历史'));
     await tester.pumpAndSettle();
@@ -121,8 +139,11 @@ class _CaptureRepository implements BowelRecordRepository {
   final List<BowelRecord> _records;
 
   @override
-  Future<BowelRecord> create(int bristolType, {DateTime? recordedAt}) =>
-      throw UnimplementedError();
+  Future<BowelRecord> create(
+    int bristolType, {
+    DateTime? recordedAt,
+    RecordDetails details = const RecordDetails(),
+  }) => throw UnimplementedError();
 
   @override
   Future<void> delete(String recordId) => throw UnimplementedError();
@@ -138,6 +159,7 @@ class _CaptureRepository implements BowelRecordRepository {
     String recordId,
     int bristolType, {
     DateTime? recordedAt,
+    RecordDetails? details,
   }) => throw UnimplementedError();
 }
 

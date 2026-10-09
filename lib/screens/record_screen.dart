@@ -8,6 +8,7 @@ import '../core/theme/app_colors.dart';
 import '../core/formatters.dart';
 import '../core/theme/app_theme.dart';
 import '../domain/bristol_type.dart';
+import '../domain/record_details.dart';
 import '../widgets/pressable.dart';
 
 class RecordScreen extends StatefulWidget {
@@ -29,9 +30,21 @@ class RecordScreen extends StatefulWidget {
 class _RecordScreenState extends State<RecordScreen> {
   late DateTime _recordedAt;
   int? _selectedType;
+  late final TextEditingController _note;
+  int _discomfortMask = 0;
+  bool _detailsMode = false;
+  bool _allowPop = false;
 
-  bool get _explicitSave =>
+  bool get _hasDateControls =>
       widget.initialDate != null || widget.editRecordId != null;
+  bool get _hasUnsavedDetails {
+    final old =
+        widget.controller.record(widget.editRecordId)?.details ??
+        const RecordDetails();
+    return _note.text != old.note || _discomfortMask != old.discomfortMask;
+  }
+
+  bool get _explicitSave => _hasDateControls || _detailsMode;
 
   @override
   void initState() {
@@ -43,7 +56,104 @@ class _RecordScreenState extends State<RecordScreen> {
         record?.recordedAt ??
         DateTime(date.year, date.month, date.day, now.hour, now.minute);
     _selectedType = record?.bristolType;
+    _note = TextEditingController(text: record?.details.note ?? '')
+      ..addListener(_detailsChanged);
+    _discomfortMask = record?.details.discomfortMask ?? 0;
+    _detailsMode = record != null && !record.details.isEmpty;
   }
+
+  void _detailsChanged() => setState(() {});
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  Future<void> _requestBack() async {
+    if (widget.controller.isWorking) return;
+    if (_hasUnsavedDetails) {
+      final discard = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('放弃未保存的细节？'),
+          content: const Text('填写的备注和不适尚未保存。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('继续填写'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('放弃'),
+            ),
+          ],
+        ),
+      );
+      if (discard != true || !mounted) return;
+    }
+    setState(() => _allowPop = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Widget _optionalDetails(bool enabled) => ExpansionTile(
+    key: const PageStorageKey('record-details'),
+    maintainState: true,
+    initiallyExpanded: _detailsMode,
+    tilePadding: EdgeInsets.zero,
+    childrenPadding: const EdgeInsets.only(bottom: 16),
+    title: const Text('添加细节（可选）', style: TextStyle(fontSize: 14)),
+    subtitle: const Text(
+      '备注、腹痛、腹胀等',
+      style: TextStyle(fontSize: 12, color: AppColors.inkMuted),
+    ),
+    onExpansionChanged: (expanded) {
+      if (expanded) setState(() => _detailsMode = true);
+    },
+    children: [
+      Align(
+        alignment: Alignment.centerLeft,
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            for (final symptom in Discomfort.values)
+              FilterChip(
+                key: ValueKey('discomfort-${symptom.name}'),
+                label: Text(symptom.label),
+                selected: _discomfortMask & symptom.bit != 0,
+                onSelected: !enabled
+                    ? null
+                    : (selected) => setState(() {
+                        _discomfortMask = selected
+                            ? _discomfortMask | symptom.bit
+                            : _discomfortMask & ~symptom.bit;
+                      }),
+              ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 8),
+      TextField(
+        key: const PageStorageKey('record-note'),
+        controller: _note,
+        enabled: enabled,
+        minLines: 2,
+        maxLines: 4,
+        maxLength: RecordDetails.maxNoteLength,
+        decoration: const InputDecoration(
+          labelText: '备注（可选）',
+          hintText: '例如：今天的饮食、用药或其他感受',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      const Text(
+        '细节只保存在本机。未勾选表示未记录，不代表没有不适。',
+        style: TextStyle(fontSize: 12, color: AppColors.inkMuted),
+      ),
+    ],
+  );
 
   void _setDate(DateTime date) {
     widget.controller.clearFeedback();
@@ -59,13 +169,8 @@ class _RecordScreenState extends State<RecordScreen> {
       minute = now.minute;
     }
     setState(
-      () => _recordedAt = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        hour,
-        minute,
-      ),
+      () =>
+          _recordedAt = DateTime(date.year, date.month, date.day, hour, minute),
     );
   }
 
@@ -142,7 +247,10 @@ class _RecordScreenState extends State<RecordScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('Bristol 形态说明', style: pixelStyle(size: 22, height: 1.3)),
+                  Text(
+                    'Bristol 形态说明',
+                    style: pixelStyle(size: 22, height: 1.3),
+                  ),
                   const SizedBox(height: 8),
                   const Text(
                     '只按外观选最接近的一项即可。这里是自我记录工具，不用于诊断。',
@@ -171,12 +279,16 @@ class _RecordScreenState extends State<RecordScreen> {
     final saved = await widget.controller.saveType(
       type,
       editRecordId: widget.editRecordId,
-      recordedAt: _explicitSave ? _recordedAt : null,
+      recordedAt: _hasDateControls ? _recordedAt : null,
+      details: RecordDetails(note: _note.text, discomfortMask: _discomfortMask),
     );
     if (saved && mounted) {
+      setState(() => _allowPop = true);
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
       Navigator.of(
         context,
-      ).pop(_explicitSave ? _recordedAt : widget.controller.now);
+      ).pop(_hasDateControls ? _recordedAt : widget.controller.now);
     }
   }
 
@@ -264,7 +376,10 @@ class _RecordScreenState extends State<RecordScreen> {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) => PopScope(
-        canPop: !controller.isWorking,
+        canPop: !controller.isWorking && (_allowPop || !_hasUnsavedDetails),
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && !controller.isWorking) _requestBack();
+        },
         child: Scaffold(
           body: SafeArea(
             child: Column(
@@ -272,11 +387,11 @@ class _RecordScreenState extends State<RecordScreen> {
                 _RecordHeader(
                   title: widget.editRecordId != null
                       ? '修改记录'
-                      : _explicitSave
+                      : _hasDateControls
                       ? '补记'
                       : '记录一次',
                   enabled: !controller.isWorking,
-                  onBack: () => Navigator.of(context).pop(),
+                  onBack: _requestBack,
                 ),
                 Expanded(
                   child: Center(
@@ -288,66 +403,80 @@ class _RecordScreenState extends State<RecordScreen> {
                           key: const PageStorageKey('record-form'),
                           padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                           children: [
-                      if (_explicitSave) _dateControls(!controller.isWorking),
-                      Text('更接近哪一种？', style: pixelStyle(size: 28, height: 1.3)),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8, bottom: 16),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Expanded(
-                              child: Text(
-                                _explicitSave
-                                    ? '选好形态后，确认保存到这一天'
-                                    : '点选后立即记下，可随时修改',
-                                style: const TextStyle(
-                                  color: AppColors.inkMuted,
-                                  fontSize: 14,
-                                  height: 1.5,
-                                ),
-                              ),
+                            if (_hasDateControls)
+                              _dateControls(!controller.isWorking),
+                            Text(
+                              '更接近哪一种？',
+                              style: pixelStyle(size: 28, height: 1.3),
                             ),
-                            const SizedBox(width: 8),
-                            Pressable(
-                              key: const Key('bristol-guide'),
-                              semanticLabel: '查看 Bristol 形态说明',
-                              enabled: !controller.isWorking,
-                              onPressed: _showBristolGuide,
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 4,
-                                ),
-                                child: Text(
-                                  '怎么看？',
-                                  style: TextStyle(
-                                    color: AppColors.mossInk,
-                                    fontSize: 12,
-                                    height: 1.5,
-                                    decoration: TextDecoration.underline,
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: 8,
+                                bottom: 16,
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Expanded(
+                                    child: Text(
+                                      _explicitSave
+                                          ? '选好形态后，点击下方保存'
+                                          : '点选后立即记下，可随时修改',
+                                      style: const TextStyle(
+                                        color: AppColors.inkMuted,
+                                        fontSize: 14,
+                                        height: 1.5,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: 8),
+                                  Pressable(
+                                    key: const Key('bristol-guide'),
+                                    semanticLabel: '查看 Bristol 形态说明',
+                                    enabled: !controller.isWorking,
+                                    onPressed: _showBristolGuide,
+                                    child: Container(
+                                      constraints: const BoxConstraints(
+                                        minHeight: 48,
+                                        minWidth: 64,
+                                      ),
+                                      alignment: Alignment.center,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                        vertical: 4,
+                                      ),
+                                      child: const Text(
+                                        '怎么看？',
+                                        style: TextStyle(
+                                          color: AppColors.mossInk,
+                                          fontSize: 12,
+                                          height: 1.5,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      for (final type in bristolTypes) ...[
-                        _BristolChoice(
-                          type: type,
-                          selected: _selectedType == type.number,
-                          enabled:
-                              !controller.isWorking && !controller.isLoading,
-                          onPressed: () {
-                            if (_explicitSave) {
-                              setState(() => _selectedType = type.number);
-                            } else {
-                              _save(type.number);
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                      ],
+                            _optionalDetails(!controller.isWorking),
+                            for (final type in bristolTypes) ...[
+                              _BristolChoice(
+                                type: type,
+                                selected: _selectedType == type.number,
+                                enabled:
+                                    !controller.isWorking &&
+                                    !controller.isLoading,
+                                onPressed: () {
+                                  if (_explicitSave) {
+                                    setState(() => _selectedType = type.number);
+                                  } else {
+                                    _save(type.number);
+                                  }
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                            ],
                           ],
                         ),
                       ),
@@ -373,9 +502,11 @@ class _RecordScreenState extends State<RecordScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
                     child: Pressable(
                       key: const Key('record-save'),
-                      semanticLabel: widget.editRecordId == null
+                      semanticLabel: widget.editRecordId != null
+                          ? '保存修改'
+                          : _hasDateControls
                           ? '确认补记'
-                          : '保存修改',
+                          : '保存记录',
                       enabled:
                           _selectedType != null &&
                           !controller.isWorking &&
@@ -395,7 +526,9 @@ class _RecordScreenState extends State<RecordScreen> {
                               ? '正在保存…'
                               : widget.editRecordId != null
                               ? '保存修改'
-                              : '补记到 ${_recordedAt.month}月${_recordedAt.day}日',
+                              : _hasDateControls
+                              ? '补记到 ${_recordedAt.month}月${_recordedAt.day}日'
+                              : '保存记录',
                           style: const TextStyle(
                             color: AppColors.paperRaised,
                             fontSize: 16,

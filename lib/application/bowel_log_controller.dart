@@ -1,3 +1,6 @@
+import '../domain/record_details.dart';
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../core/formatters.dart';
@@ -14,11 +17,18 @@ class LogDaySummary {
 }
 
 class BowelLogController extends ChangeNotifier {
-  BowelLogController(this._repository, {DateTime Function()? now})
-    : _now = now ?? DateTime.now;
+  BowelLogController(
+    this._repository, {
+    DateTime Function()? now,
+    this.onDispose,
+  }) : _now = now ?? DateTime.now;
 
   final BowelRecordRepository _repository;
   final DateTime Function() _now;
+  final Future<void> Function()? onDispose;
+  bool _disposed = false;
+  bool _hasLoaded = false;
+  bool get hasLoaded => _hasLoaded;
 
   List<BowelRecord> _records = const <BowelRecord>[];
   DateTime _currentDate = dateOnly(DateTime.now());
@@ -90,9 +100,13 @@ class BowelLogController extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
+    if (_isWorking) return;
     _currentDate = dateOnly(_now());
+    _isLoading = true;
+    _errorMessage = null;
     try {
       await _reload();
+      _hasLoaded = true;
     } catch (_) {
       _errorMessage = '没有读取成功，请重新打开应用';
     } finally {
@@ -121,8 +135,15 @@ class BowelLogController extends ChangeNotifier {
     int bristolType, {
     String? editRecordId,
     DateTime? recordedAt,
+    RecordDetails? details,
   }) async {
-    if (_isWorking || bristolType < 1 || bristolType > 7) return false;
+    if (_isWorking ||
+        _isLoading ||
+        !_hasLoaded ||
+        bristolType < 1 ||
+        bristolType > 7) {
+      return false;
+    }
     final actionTime = _now();
     if (recordedAt != null &&
         (recordedAt.isAfter(actionTime) ||
@@ -139,6 +160,7 @@ class BowelLogController extends ChangeNotifier {
         saved = await _repository.create(
           bristolType,
           recordedAt: recordedAt ?? actionTime,
+          details: (details ?? const RecordDetails()).validated(),
         );
       } else {
         final old = record(editRecordId);
@@ -147,12 +169,14 @@ class BowelLogController extends ChangeNotifier {
           editRecordId,
           bristolType,
           recordedAt: recordedAt,
+          details: details?.validated(),
         );
         saved = BowelRecord(
           recordId: old.recordId,
           bristolType: bristolType,
           recordedAt: recordedAt ?? old.recordedAt,
           updatedAt: actionTime,
+          details: (details ?? old.details).validated(),
         );
       }
       // Once the write succeeds, update locally. A failed follow-up read must
@@ -196,7 +220,9 @@ class BowelLogController extends ChangeNotifier {
   /// Returning a bool lets transient UI actions quietly disappear when the
   /// short undo window has expired or a restore has already been attempted.
   Future<bool> restoreRecord(String recordId) async {
-    if (_isWorking || recordId.trim().isEmpty) return false;
+    if (_isWorking || _isLoading || !_hasLoaded || recordId.trim().isEmpty) {
+      return false;
+    }
     final deleted = _deletedRecords[recordId];
     if (deleted == null) return false;
     _beginAction();
@@ -220,7 +246,9 @@ class BowelLogController extends ChangeNotifier {
     required String successMessage,
     required String failureMessage,
   }) async {
-    if (_isWorking || recordId.trim().isEmpty) return null;
+    if (_isWorking || _isLoading || !_hasLoaded || recordId.trim().isEmpty) {
+      return null;
+    }
     final deleted = record(recordId);
     if (deleted == null) {
       _errorMessage = failureMessage;
@@ -246,6 +274,19 @@ class BowelLogController extends ChangeNotifier {
     } finally {
       _endAction();
     }
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _deletedRecords.clear();
+    if (onDispose != null) unawaited(onDispose!());
+    super.dispose();
   }
 
   Future<void> _reload() async {

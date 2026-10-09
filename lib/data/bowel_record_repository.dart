@@ -1,14 +1,20 @@
+import '../domain/record_details.dart';
 import '../domain/bowel_record.dart';
 
 abstract interface class BowelRecordRepository {
   Future<List<BowelRecord>> loadAll();
 
-  Future<BowelRecord> create(int bristolType, {DateTime? recordedAt});
+  Future<BowelRecord> create(
+    int bristolType, {
+    DateTime? recordedAt,
+    RecordDetails details = const RecordDetails(),
+  });
 
   Future<void> updateType(
     String recordId,
     int bristolType, {
     DateTime? recordedAt,
+    RecordDetails? details,
   });
 
   Future<void> delete(String recordId);

@@ -1,3 +1,4 @@
+import 'package:lalema/domain/record_details.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lalema/application/bowel_log_controller.dart';
 import 'package:lalema/data/bowel_record_repository.dart';
@@ -43,21 +44,24 @@ void main() {
     expect(controller.errorMessage, isNull);
   });
 
-  test('deleted records can be restored with their original identity', () async {
-    final repository = _MemoryRepository(now);
-    final controller = BowelLogController(repository, now: () => now);
-    await controller.initialize();
-    final occurredAt = now.subtract(const Duration(hours: 2));
-    await controller.saveType(3, recordedAt: occurredAt);
-    final deleted = controller.records.single;
+  test(
+    'deleted records can be restored with their original identity',
+    () async {
+      final repository = _MemoryRepository(now);
+      final controller = BowelLogController(repository, now: () => now);
+      await controller.initialize();
+      final occurredAt = now.subtract(const Duration(hours: 2));
+      await controller.saveType(3, recordedAt: occurredAt);
+      final deleted = controller.records.single;
 
-    await controller.deleteRecord(deleted.recordId);
-    expect(controller.records, isEmpty);
-    expect(await controller.restoreRecord(deleted.recordId), isTrue);
-    expect(controller.records.single.recordId, deleted.recordId);
-    expect(controller.records.single.recordedAt, occurredAt);
-    expect(controller.feedbackMessage, '已恢复');
-  });
+      await controller.deleteRecord(deleted.recordId);
+      expect(controller.records, isEmpty);
+      expect(await controller.restoreRecord(deleted.recordId), isTrue);
+      expect(controller.records.single.recordId, deleted.recordId);
+      expect(controller.records.single.recordedAt, occurredAt);
+      expect(controller.feedbackMessage, '已恢复');
+    },
+  );
 
   test('builds seven consecutive day summaries', () async {
     final repository = _MemoryRepository(now)
@@ -76,6 +80,41 @@ void main() {
     expect(days[5].recordCount, 1);
     expect(days.fold<int>(0, (sum, day) => sum + day.recordCount), 3);
   });
+
+  test('failed initialization blocks writes and can be retried', () async {
+    final repository = _MemoryRepository(now)..failReads = true;
+    final controller = BowelLogController(repository, now: () => now);
+    await controller.initialize();
+    expect(controller.hasLoaded, isFalse);
+    expect(await controller.saveType(4), isFalse);
+    expect(repository.records, isEmpty);
+    repository.failReads = false;
+    await controller.initialize();
+    expect(controller.hasLoaded, isTrue);
+    expect(controller.errorMessage, isNull);
+    expect(await controller.saveType(4), isTrue);
+  });
+
+  test(
+    'daily windows use calendar boundaries across daylight saving',
+    () async {
+      // Pacific/Auckland changes to daylight time on 2026-09-27. CI also
+      // runs this test with that TZ instead of assuming every day is 24 hours.
+      final clock = DateTime(2026, 9, 29, 0, 30);
+      final repository = _MemoryRepository(clock)
+        ..records.addAll([
+          _record('first', 2, DateTime(2026, 9, 23, 0)),
+          _record('before', 3, DateTime(2026, 9, 22, 23, 59)),
+          _record('transition', 4, DateTime(2026, 9, 27, 3, 30)),
+          _record('current', 5, clock),
+        ]);
+      final controller = BowelLogController(repository, now: () => clock);
+      await controller.initialize();
+      final days = controller.lastSevenDays;
+      expect(days.map((day) => day.date.day), [23, 24, 25, 26, 27, 28, 29]);
+      expect(days.map((day) => day.recordCount), [1, 0, 0, 0, 1, 0, 1]);
+    },
+  );
 
   test('builds a thirty day window ending on the current day', () async {
     final repository = _MemoryRepository(now)
@@ -114,7 +153,11 @@ class _MemoryRepository implements BowelRecordRepository {
   int _nextId = 0;
 
   @override
-  Future<BowelRecord> create(int bristolType, {DateTime? recordedAt}) async {
+  Future<BowelRecord> create(
+    int bristolType, {
+    DateTime? recordedAt,
+    RecordDetails details = const RecordDetails(),
+  }) async {
     final record = _record(
       'record-${_nextId++}',
       bristolType,
@@ -140,6 +183,7 @@ class _MemoryRepository implements BowelRecordRepository {
     String recordId,
     int bristolType, {
     DateTime? recordedAt,
+    RecordDetails? details,
   }) async {
     final index = records.indexWhere((record) => record.recordId == recordId);
     final old = records[index];

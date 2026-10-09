@@ -13,6 +13,7 @@ import '../domain/bowel_record.dart';
 import '../domain/bristol_type.dart';
 import '../widgets/calendar_button.dart';
 import '../widgets/pressable.dart';
+import '../widgets/record_details_preview.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({
@@ -690,6 +691,16 @@ class _CalendarRecord extends StatelessWidget {
             ),
           ),
         ),
+        if (!record.details.isEmpty)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Pressable(
+              semanticLabel: '查看和修改记录细节',
+              enabled: enabled,
+              onPressed: onEdit,
+              child: RecordDetailsPreview(details: record.details),
+            ),
+          ),
         const Divider(height: 1, color: AppColors.rule),
       ],
     );

@@ -1,3 +1,4 @@
+import '../domain/record_details.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
@@ -6,34 +7,64 @@ import '../domain/bowel_record.dart';
 import 'bowel_record_repository.dart';
 
 class SqliteBowelRecordRepository implements BowelRecordRepository {
-  SqliteBowelRecordRepository._(this._database, this._uuid);
+  SqliteBowelRecordRepository._(this._database, this._uuid, this._now);
 
+  static const schemaVersion = 2;
   static const _table = 'bowel_records';
   final Database _database;
   final Uuid _uuid;
+  final DateTime Function() _now;
 
-  static Future<SqliteBowelRecordRepository> open() async {
-    final databasePath = path.join(await getDatabasesPath(), 'lalema.db');
-    final database = await openDatabase(
-      databasePath,
-      version: 1,
-      onCreate: (db, _) async {
-        await db.execute('''
-          CREATE TABLE $_table (
-            recordId TEXT PRIMARY KEY NOT NULL,
-            bristolType INTEGER NOT NULL,
-            recordedAt INTEGER NOT NULL,
-            updatedAt INTEGER NOT NULL
-          )
-        ''');
-        await db.execute(
-          'CREATE INDEX index_bowel_records_recordedAt '
-          'ON $_table(recordedAt)',
-        );
-      },
+  static Future<SqliteBowelRecordRepository> open({
+    String? databasePath,
+    DatabaseFactory? factory,
+    DateTime Function()? now,
+  }) async {
+    final dbFactory = factory ?? databaseFactory;
+    final location =
+        databasePath ??
+        path.join(await dbFactory.getDatabasesPath(), 'lalema.db');
+    final database = await dbFactory.openDatabase(
+      location,
+      options: OpenDatabaseOptions(
+        version: schemaVersion,
+        onCreate: (db, _) async {
+          await db.execute('''
+            CREATE TABLE $_table (
+              recordId TEXT PRIMARY KEY NOT NULL,
+              bristolType INTEGER NOT NULL CHECK(bristolType BETWEEN 1 AND 7),
+              recordedAt INTEGER NOT NULL,
+              updatedAt INTEGER NOT NULL,
+              note TEXT NOT NULL DEFAULT '',
+              discomforts INTEGER NOT NULL DEFAULT 0 CHECK(discomforts BETWEEN 0 AND 15)
+            )
+          ''');
+          await db.execute(
+            'CREATE INDEX index_bowel_records_recordedAt ON $_table(recordedAt)',
+          );
+        },
+        onUpgrade: (db, oldVersion, _) async {
+          // sqflite wraps onUpgrade in a transaction. Never rebuild or clear
+          // the table: existing identities and occurrence times stay intact.
+          if (oldVersion < 2) {
+            await db.execute(
+              "ALTER TABLE $_table ADD COLUMN note TEXT NOT NULL DEFAULT ''",
+            );
+            await db.execute(
+              'ALTER TABLE $_table ADD COLUMN discomforts INTEGER NOT NULL DEFAULT 0',
+            );
+          }
+        },
+      ),
     );
-    return SqliteBowelRecordRepository._(database, const Uuid());
+    return SqliteBowelRecordRepository._(
+      database,
+      const Uuid(),
+      now ?? DateTime.now,
+    );
   }
+
+  Future<void> close() => _database.close();
 
   @override
   Future<List<BowelRecord>> loadAll() async {
@@ -45,15 +76,20 @@ class SqliteBowelRecordRepository implements BowelRecordRepository {
   }
 
   @override
-  Future<BowelRecord> create(int bristolType, {DateTime? recordedAt}) async {
+  Future<BowelRecord> create(
+    int bristolType, {
+    DateTime? recordedAt,
+    RecordDetails details = const RecordDetails(),
+  }) async {
     _requireValidType(bristolType);
-    final now = DateTime.now();
+    final now = _now();
     _requireValidTime(recordedAt, now);
     final record = BowelRecord(
       recordId: _uuid.v4(),
       bristolType: bristolType,
       recordedAt: recordedAt ?? now,
       updatedAt: now,
+      details: details.validated(),
     );
     await _database.insert(
       _table,
@@ -68,17 +104,22 @@ class SqliteBowelRecordRepository implements BowelRecordRepository {
     String recordId,
     int bristolType, {
     DateTime? recordedAt,
+    RecordDetails? details,
   }) async {
     if (recordId.trim().isEmpty) {
       throw ArgumentError('recordId must not be blank');
     }
     _requireValidType(bristolType);
-    final now = DateTime.now();
+    final now = _now();
     _requireValidTime(recordedAt, now);
     final changed = await _database.update(
       _table,
       <String, Object>{
         'bristolType': bristolType,
+        if (details != null) ...{
+          'note': details.validated().note,
+          'discomforts': details.discomfortMask,
+        },
         if (recordedAt != null) 'recordedAt': recordedAt.millisecondsSinceEpoch,
         'updatedAt': now.millisecondsSinceEpoch,
       },
@@ -104,7 +145,8 @@ class SqliteBowelRecordRepository implements BowelRecordRepository {
   @override
   Future<void> restore(BowelRecord record) async {
     _requireValidType(record.bristolType);
-    _requireValidTime(record.recordedAt, DateTime.now());
+    _requireValidTime(record.recordedAt, _now());
+    record.details.validated();
     if (record.recordId.trim().isEmpty) {
       throw ArgumentError('recordId must not be blank');
     }

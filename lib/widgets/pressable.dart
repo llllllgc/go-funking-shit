@@ -45,13 +45,15 @@ class _PressableState extends State<Pressable> {
       enabled: widget.enabled,
       selected: widget.selected,
       label: widget.semanticLabel,
+      excludeSemantics: true,
+      onTap: widget.enabled ? widget.onPressed : null,
       child: FocusableActionDetector(
         enabled: widget.enabled,
         onShowFocusHighlight: (value) => setState(() => _focused = value),
         actions: <Type, Action<Intent>>{
           ActivateIntent: CallbackAction<ActivateIntent>(
             onInvoke: (_) {
-              widget.onPressed();
+              if (widget.enabled) widget.onPressed();
               return null;
             },
           ),
@@ -62,7 +64,7 @@ class _PressableState extends State<Pressable> {
           onTapUp: widget.enabled
               ? (_) {
                   _setPressed(false);
-                  widget.onPressed();
+                  if (widget.enabled) widget.onPressed();
                 }
               : null,
           onTapCancel: widget.enabled ? () => _setPressed(false) : null,

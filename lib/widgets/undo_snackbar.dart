@@ -24,7 +24,7 @@ void showRecordUndoSnackBar(
         content: Text('已删除 ${formatDeleteDate(record.recordedAt)}'),
         duration: const Duration(seconds: 6),
         action: SnackBarAction(
-          label: '撤销',
+          label: '恢复记录',
           onPressed: () {
             controller.restoreRecord(record.recordId);
           },

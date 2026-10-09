@@ -38,69 +38,50 @@ class TodayScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.paper,
-      body: SafeArea(
-        bottom: false,
-        child: AnimatedBuilder(
-          animation: controller,
-          builder: (context, _) {
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                final narrow = constraints.maxWidth < 350;
-                final compact = constraints.maxHeight < 780 || narrow;
-                final padding = narrow ? 20.0 : 24.0;
-                return Stack(
-                  children: <Widget>[
-                    Positioned.fill(
-                      bottom: ticketBottomBarHeight,
-                      child: SingleChildScrollView(
-                        padding: EdgeInsets.fromLTRB(
-                          padding,
-                          compact ? 12 : 20,
-                          padding,
-                          24,
-                        ),
-                          child: Center(
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxWidth: 560,
-                                minHeight:
-                                    (constraints.maxHeight -
-                                            ticketBottomBarHeight -
-                                            (compact ? 36 : 44))
-                                        .clamp(0, double.infinity),
-                              ),
-                              child: SizedBox(
-                                width: double.infinity,
-                                child: _TodayContent(
-                                  controller: controller,
-                                  narrow: narrow,
-                                  compact: compact,
-                                  onEdit: onEdit,
-                                  onCalendar: onCalendar,
-                                  onKnowledge: onKnowledge,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    Align(
-                      alignment: Alignment.bottomCenter,
-                      child: TicketBottomBar(
-                        selectedTab: TicketTab.today,
-                        onToday: () {},
-                        onRecord: onRecord,
-                        onHistory: onHistory,
-                        recordEnabled: !controller.isWorking,
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) => Scaffold(
+        backgroundColor: AppColors.paper,
+        bottomNavigationBar: TicketBottomBar(
+          selectedTab: TicketTab.today,
+          onToday: () {},
+          onRecord: onRecord,
+          onHistory: onHistory,
+          recordEnabled: !controller.isWorking && !controller.isLoading,
+        ),
+        body: SafeArea(
+          bottom: false,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final narrow = constraints.maxWidth < 350;
+              final compact = constraints.maxHeight < 668 || narrow;
+              final padding = narrow ? 20.0 : 24.0;
+              return SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  padding,
+                  compact ? 12 : 20,
+                  padding,
+                  24,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 560),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: _TodayContent(
+                        controller: controller,
+                        narrow: narrow,
+                        compact: compact,
+                        onEdit: onEdit,
+                        onCalendar: onCalendar,
+                        onKnowledge: onKnowledge,
                       ),
                     ),
-                  ],
-                );
-              },
-            );
-          },
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -146,14 +127,21 @@ class _TodayContent extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
-              Text(
-                controller.isLoading
-                    ? '—'
-                    : controller.todayRecordCount.toString(),
-                style: pixelStyle(
-                  size: compact ? 88 : 112,
-                  height: compact ? 96 / 88 : 120 / 112,
-                  color: AppColors.moss,
+              Flexible(
+                flex: 2,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.bottomLeft,
+                  child: Text(
+                    controller.isLoading
+                        ? '—'
+                        : controller.todayRecordCount.toString(),
+                    style: pixelStyle(
+                      size: compact ? 88 : 112,
+                      height: compact ? 96 / 88 : 120 / 112,
+                      color: AppColors.moss,
+                    ),
+                  ),
                 ),
               ),
               Padding(
@@ -209,7 +197,7 @@ class _TodayContent extends StatelessWidget {
                   ),
                 if (latest != null)
                   _InlineAction(
-                    label: '撤销',
+                    label: '删除',
                     icon: 'assets/icons/ic_ticket_undo.svg',
                     enabled: !controller.isWorking,
                     onPressed: () async {
@@ -223,7 +211,7 @@ class _TodayContent extends StatelessWidget {
                   ),
                 if (recent != null)
                   _InlineAction(
-                    label: '再记一次 ${bristolTypeFor(recent.bristolType)?.code ?? ''}',
+                    label: '按上次形态记录 ${recent.bristolType}型',
                     icon: 'assets/icons/ic_ticket_note.svg',
                     enabled: !controller.isWorking,
                     onPressed: () => _repeatLatest(context, recent),
@@ -294,11 +282,7 @@ class _TodayContent extends StatelessWidget {
     if (controller.isLoading) {
       return 'assets/images/toilet_paper_spirit_normal.png';
     }
-    return switch (controller.latestTodayRecord?.bristolType) {
-      4 => 'assets/images/toilet_paper_spirit_happy.png',
-      7 => 'assets/images/toilet_paper_spirit_sad.png',
-      _ => 'assets/images/toilet_paper_spirit_normal.png',
-    };
+    return 'assets/images/toilet_paper_spirit_normal.png';
   }
 
   Future<void> _repeatLatest(BuildContext context, BowelRecord record) async {
@@ -309,7 +293,7 @@ class _TodayContent extends StatelessWidget {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text('已按 ${type?.code ?? record.bristolType} 记录'),
+          content: Text('已按 ${type?.number ?? record.bristolType}型记录当前时间'),
           duration: const Duration(seconds: 3),
         ),
       );
@@ -336,10 +320,12 @@ class _TrendInsightState extends State<_TrendInsight> {
       widget.today.month,
       widget.today.day - _windowDays + 1,
     );
-    final records = widget.records.where((record) {
-      final date = dateOnly(record.recordedAt);
-      return !date.isBefore(start) && !date.isAfter(widget.today);
-    }).toList(growable: false);
+    final records = widget.records
+        .where((record) {
+          final date = dateOnly(record.recordedAt);
+          return !date.isBefore(start) && !date.isAfter(widget.today);
+        })
+        .toList(growable: false);
     final activeDates = <DateTime>{
       for (final record in records) dateOnly(record.recordedAt),
     };
@@ -347,7 +333,8 @@ class _TrendInsightState extends State<_TrendInsight> {
     final average = total == 0 ? '—' : (total / _windowDays).toStringAsFixed(1);
     final distribution = List<int>.filled(bristolTypes.length, 0);
     for (final record in records) {
-      if (record.bristolType >= 1 && record.bristolType <= bristolTypes.length) {
+      if (record.bristolType >= 1 &&
+          record.bristolType <= bristolTypes.length) {
         distribution[record.bristolType - 1]++;
       }
     }
@@ -361,10 +348,12 @@ class _TrendInsightState extends State<_TrendInsight> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: <Widget>[
-              Text('趋势摘要', style: pixelStyle(size: 18, height: 1.3)),
+              Text('记录观察', style: pixelStyle(size: 18, height: 1.3)),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
@@ -402,10 +391,10 @@ class _TrendInsightState extends State<_TrendInsight> {
                 ),
               ),
               Expanded(
-                child: _InsightMetric(label: '样本数', value: '$total'),
+                child: _InsightMetric(label: '记录总数', value: '$total'),
               ),
               Expanded(
-                child: _InsightMetric(label: '日均次数', value: average),
+                child: _InsightMetric(label: '日均记录数', value: average),
               ),
             ],
           ),
@@ -429,10 +418,10 @@ class _TrendInsightState extends State<_TrendInsight> {
           const SizedBox(height: 10),
           Text(
             total == 0
-                ? '还没有可比较的记录，先记一笔再回来看看。'
+                ? '还没有记录。未记录不表示没有排便。'
                 : total < 3
-                ? '样本较少，仅显示记录分布，不做健康判断。'
-                : '只用于回顾记录，不代表健康结论。',
+                ? '记录较少，仅供回顾。未记录不表示没有排便。'
+                : '日均记录数＝记录总数 ÷ $_windowDays 天（含今天）。未记录不表示没有排便。',
             style: const TextStyle(
               color: AppColors.inkMuted,
               fontSize: 11,
@@ -463,14 +452,12 @@ class _TrendWindowButton extends StatelessWidget {
       selected: selected,
       onPressed: onPressed,
       child: Container(
-        constraints: const BoxConstraints(minWidth: 48, minHeight: 34),
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           color: selected ? AppColors.mossPale : AppColors.paper,
-          border: Border.all(
-            color: selected ? AppColors.moss : AppColors.rule,
-          ),
+          border: Border.all(color: selected ? AppColors.moss : AppColors.rule),
         ),
         child: Text(
           label,
@@ -501,7 +488,7 @@ class _DistributionChip extends StatelessWidget {
         border: Border.all(color: count > 0 ? AppColors.moss : AppColors.rule),
       ),
       child: Text(
-        '$code  $count',
+        '$code型 · $count笔',
         style: TextStyle(
           color: count > 0 ? AppColors.mossInk : AppColors.inkMuted,
           fontSize: 11,
@@ -527,12 +514,15 @@ class _InsightMetric extends StatelessWidget {
           value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: pixelStyle(size: 16, height: 22 / 16, color: AppColors.mossInk),
+          style: pixelStyle(
+            size: 16,
+            height: 22 / 16,
+            color: AppColors.mossInk,
+          ),
         ),
         const SizedBox(height: 3),
         Text(
           label,
-          maxLines: 2,
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: AppColors.inkMuted,
@@ -622,14 +612,15 @@ class _InlineAction extends StatelessWidget {
               colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
             ),
             const SizedBox(width: 8),
-            Text(
-              label,
-              maxLines: 1,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                height: 1.5,
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  height: 1.5,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
             const SizedBox(width: 4),
@@ -656,11 +647,14 @@ class _SevenDayTicket extends StatelessWidget {
     final total = days.fold<int>(0, (sum, day) => sum + day.recordCount);
     return Column(
       children: <Widget>[
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: <Widget>[
             Text('近 7 天', style: pixelStyle(size: 20, height: 1.3)),
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   '共 $total 次',

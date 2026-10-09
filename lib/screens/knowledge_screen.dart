@@ -42,87 +42,91 @@ class _KnowledgeScreenState extends State<KnowledgeScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
                 children: <Widget>[
-            Row(
-              children: <Widget>[
-                Pressable(
-                  key: const Key('knowledge-back'),
-                  semanticLabel: '返回',
-                  onPressed: () => Navigator.of(context).maybePop(),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 10, 14, 10),
-                    child: SvgPicture.asset(
-                      'assets/icons/ic_ticket_back.svg',
-                      width: 22,
-                      height: 22,
-                      colorFilter: const ColorFilter.mode(
-                        AppColors.ink,
-                        BlendMode.srcIn,
+                  Row(
+                    children: <Widget>[
+                      Pressable(
+                        key: const Key('knowledge-back'),
+                        semanticLabel: '返回',
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(0, 10, 14, 10),
+                          child: SvgPicture.asset(
+                            'assets/icons/ic_ticket_back.svg',
+                            width: 22,
+                            height: 22,
+                            colorFilter: const ColorFilter.mode(
+                              AppColors.ink,
+                              BlendMode.srcIn,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          '小纸条',
+                          style: pixelStyle(size: 28, height: 36 / 28),
+                        ),
+                      ),
+                      SvgPicture.asset(
+                        'assets/icons/ic_ticket_note.svg',
+                        width: 24,
+                        height: 24,
+                        colorFilter: const ColorFilter.mode(
+                          AppColors.mossInk,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.only(left: 36, top: 2, bottom: 20),
+                    child: Text(
+                      '把身体的信号，留给自己看。',
+                      style: TextStyle(
+                        color: AppColors.inkMuted,
+                        fontSize: 14,
+                        height: 1.5,
                       ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: Text('小纸条', style: pixelStyle(size: 28, height: 36 / 28)),
-                ),
-                SvgPicture.asset(
-                  'assets/icons/ic_ticket_note.svg',
-                  width: 24,
-                  height: 24,
-                  colorFilter: const ColorFilter.mode(
-                    AppColors.mossInk,
-                    BlendMode.srcIn,
+                  _FeaturedNote(tip: featured, basedOnRecord: latest != null),
+                  const SizedBox(height: 28),
+                  Text('按主题看', style: pixelStyle(size: 18, height: 24 / 18)),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 42,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: KnowledgeCategory.values.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        final category = KnowledgeCategory.values[index];
+                        return _CategoryButton(
+                          category: category,
+                          selected: category == _category,
+                          onPressed: () => setState(() {
+                            _category = category;
+                            _expandedId = null;
+                          }),
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const Padding(
-              padding: EdgeInsets.only(left: 36, top: 2, bottom: 20),
-              child: Text(
-                '把身体的信号，留给自己看。',
-                style: TextStyle(
-                  color: AppColors.inkMuted,
-                  fontSize: 14,
-                  height: 1.5,
-                ),
-              ),
-            ),
-            _FeaturedNote(tip: featured, basedOnRecord: latest != null),
-            const SizedBox(height: 28),
-            Text('按主题看', style: pixelStyle(size: 18, height: 24 / 18)),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 42,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: KnowledgeCategory.values.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final category = KnowledgeCategory.values[index];
-                  return _CategoryButton(
-                    category: category,
-                    selected: category == _category,
-                    onPressed: () => setState(() {
-                      _category = category;
-                      _expandedId = null;
-                    }),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-            for (final tip in tips)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _KnowledgeCard(
-                  tip: tip,
-                  expanded: tip.id == _expandedId,
-                  onPressed: () => setState(() {
-                    _expandedId = tip.id == _expandedId ? null : tip.id;
-                  }),
-                ),
-              ),
-            const SizedBox(height: 12),
-            const _KnowledgeFooter(),
+                  const SizedBox(height: 16),
+                  for (final tip in tips)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _KnowledgeCard(
+                        tip: tip,
+                        expanded: tip.id == _expandedId,
+                        onPressed: () => setState(() {
+                          _expandedId = tip.id == _expandedId ? null : tip.id;
+                        }),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  const _KnowledgeFooter(),
                 ],
               ),
             ),
@@ -180,7 +184,11 @@ class _FeaturedNote extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             tip.summary,
-            style: const TextStyle(color: AppColors.ink, fontSize: 14, height: 21 / 14),
+            style: const TextStyle(
+              color: AppColors.ink,
+              fontSize: 14,
+              height: 21 / 14,
+            ),
           ),
         ],
       ),
@@ -268,14 +276,21 @@ class _KnowledgeCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Text(
                   expanded ? '收起' : '展开',
-                  style: const TextStyle(color: AppColors.mossInk, fontSize: 12),
+                  style: const TextStyle(
+                    color: AppColors.mossInk,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Text(
               tip.summary,
-              style: const TextStyle(color: AppColors.inkMuted, fontSize: 13, height: 20 / 13),
+              style: const TextStyle(
+                color: AppColors.inkMuted,
+                fontSize: 13,
+                height: 20 / 13,
+              ),
             ),
             if (expanded) ...[
               const SizedBox(height: 10),
@@ -286,12 +301,20 @@ class _KnowledgeCard extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Text(
                     '· $detail',
-                    style: const TextStyle(color: AppColors.ink, fontSize: 13, height: 20 / 13),
+                    style: const TextStyle(
+                      color: AppColors.ink,
+                      fontSize: 13,
+                      height: 20 / 13,
+                    ),
                   ),
                 ),
               Text(
                 tip.source,
-                style: const TextStyle(color: AppColors.inkMuted, fontSize: 11, height: 17 / 11),
+                style: const TextStyle(
+                  color: AppColors.inkMuted,
+                  fontSize: 11,
+                  height: 17 / 11,
+                ),
               ),
             ],
           ],
@@ -314,7 +337,11 @@ class _KnowledgeFooter extends StatelessWidget {
       ),
       child: const Text(
         '这里是生活知识，不是诊断。出现鲜血、黑色柏油样便、明显腹痛、头晕或脱水迹象时，请及时寻求医疗帮助。',
-        style: TextStyle(color: AppColors.danger, fontSize: 12, height: 18 / 12),
+        style: TextStyle(
+          color: AppColors.danger,
+          fontSize: 12,
+          height: 18 / 12,
+        ),
       ),
     );
   }

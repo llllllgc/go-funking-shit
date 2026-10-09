@@ -50,10 +50,7 @@ abstract final class KnowledgeBase {
       category: KnowledgeCategory.habit,
       title: '饭后给身体一个从容的时间',
       summary: '进食会带动结肠活动；固定在饭后留出一点时间，比憋着或用力更温和。',
-      details: <String>[
-        '有便意时尽量及时去，不必强行追求每天同一时刻。',
-        '规律走动、放松和脚下有支撑，可能让排便更舒服。',
-      ],
+      details: <String>['有便意时尽量及时去，不必强行追求每天同一时刻。', '规律走动、放松和脚下有支撑，可能让排便更舒服。'],
       source: '参考：NIDDK 便秘生活方式建议',
       tags: <String>['规律', '活动'],
     ),

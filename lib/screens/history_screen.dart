@@ -12,6 +12,7 @@ import '../core/theme/app_theme.dart';
 import '../domain/bowel_record.dart';
 import '../domain/bristol_type.dart';
 import '../widgets/pressable.dart';
+import '../widgets/record_details_preview.dart';
 import '../widgets/calendar_button.dart';
 import '../widgets/ticket_bottom_bar.dart';
 import '../widgets/undo_snackbar.dart';
@@ -41,27 +42,27 @@ class HistoryScreen extends StatelessWidget {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) onToday();
       },
-      child: Scaffold(
-        backgroundColor: AppColors.paper,
-        body: SafeArea(
-          bottom: false,
-          child: AnimatedBuilder(
-            animation: controller,
-            builder: (context, _) {
-              return Stack(
-              children: <Widget>[
-                Positioned.fill(
-                  bottom: ticketBottomBarHeight,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final width = math.min(560.0, constraints.maxWidth);
-                      return Align(
-                        alignment: Alignment.topCenter,
-                        child: SizedBox(
-                          width: width,
-                          child: ListView(
-                            padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-                            children: <Widget>[
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) => Scaffold(
+          backgroundColor: AppColors.paper,
+          bottomNavigationBar: TicketBottomBar(
+            selectedTab: TicketTab.history,
+            onToday: onToday,
+            onRecord: onRecord,
+            onHistory: () {},
+            recordEnabled: !controller.isWorking && !controller.isLoading,
+          ),
+          body: SafeArea(
+            bottom: false,
+            child: LayoutBuilder(
+              builder: (context, constraints) => Align(
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  width: math.min(560.0, constraints.maxWidth),
+                  child: ListView(
+                    padding: const EdgeInsets.all(24),
+                    children: <Widget>[
                       Row(
                         children: [
                           Expanded(
@@ -94,14 +95,7 @@ class HistoryScreen extends StatelessWidget {
                         ],
                       ),
                       Padding(
-                        padding: EdgeInsets.only(
-                          top: 8,
-                          bottom:
-                              controller.feedbackMessage == null &&
-                                  controller.errorMessage == null
-                              ? 28
-                              : 8,
-                        ),
+                        padding: const EdgeInsets.only(top: 8, bottom: 20),
                         child: Text(
                           controller.isLoading
                               ? '正在读取'
@@ -147,26 +141,11 @@ class HistoryScreen extends StatelessWidget {
                           ),
                         const SizedBox(height: 24),
                       ],
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                    ],
                   ),
                 ),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: TicketBottomBar(
-                    selectedTab: TicketTab.history,
-                    onToday: onToday,
-                    onRecord: onRecord,
-                    onHistory: () {},
-                    recordEnabled: !controller.isWorking,
-                  ),
-                ),
-              ],
-              );
-            },
+              ),
+            ),
           ),
         ),
       ),
@@ -331,8 +310,8 @@ class _HistoryRecordRow extends StatelessWidget {
     if (type == null) return const SizedBox.shrink();
     return Column(
       children: <Widget>[
-        SizedBox(
-          height: 76,
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 76),
           child: Row(
             children: <Widget>[
               Expanded(
@@ -341,8 +320,8 @@ class _HistoryRecordRow extends StatelessWidget {
                       '${formatTime(record.recordedAt)}，${type.code}，${type.label}，修改',
                   enabled: enabled,
                   onPressed: onEdit,
-                  child: SizedBox(
-                    height: 76,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 76),
                     child: Row(
                       children: <Widget>[
                         const SizedBox(width: 4),
@@ -429,6 +408,16 @@ class _HistoryRecordRow extends StatelessWidget {
             ],
           ),
         ),
+        if (!record.details.isEmpty)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Pressable(
+              semanticLabel: '查看和修改记录细节',
+              enabled: enabled,
+              onPressed: onEdit,
+              child: RecordDetailsPreview(details: record.details),
+            ),
+          ),
         Divider(
           height: 1,
           thickness: 1,

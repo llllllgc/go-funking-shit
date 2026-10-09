@@ -72,6 +72,7 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
     String? recordId,
     DateTime? initialDate,
   }) async {
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
     widget.controller.clearFeedback();
     final savedAt = await Navigator.of(context).push<DateTime>(
       MaterialPageRoute<DateTime>(
@@ -85,15 +86,14 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
     if (savedAt != null && mounted) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(content: Text('已保存 ${formatTime(savedAt)}')),
-        );
+        ..showSnackBar(SnackBar(content: Text('已保存 ${formatTime(savedAt)}')));
     }
     return savedAt;
   }
 
   Future<void> _openCalendar(DateTime date) async {
     widget.controller.refreshDate();
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
     widget.controller.clearFeedback();
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
@@ -108,6 +108,7 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
   }
 
   Future<void> _openKnowledge() async {
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
     widget.controller.clearFeedback();
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
