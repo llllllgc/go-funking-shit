@@ -1,3 +1,7 @@
+import 'support/reminder_fakes.dart';
+import 'support/privacy_fakes.dart';
+import 'package:lalema/domain/record_transfer.dart';
+import 'package:lalema/domain/record_details.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lalema/app.dart';
 import 'package:lalema/application/bowel_log_controller.dart';
@@ -12,11 +16,18 @@ void main() {
     );
     await controller.initialize();
 
-    await tester.pumpWidget(LaLeMaApp(controller: controller));
+    await tester.pumpWidget(
+      LaLeMaApp(
+        reminders: await quietReminders(),
+        controller: controller,
+        privacy: await unlockedPrivacy(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('今天'), findsWidgets);
     expect(find.text('点一下，记一笔'), findsOneWidget);
+    expect(find.text('有记录的天数'), findsOneWidget);
     expect(find.text('记录'), findsOneWidget);
 
     await tester.tap(find.text('历史'));
@@ -27,11 +38,24 @@ void main() {
 
 class _EmptyRepository implements BowelRecordRepository {
   @override
-  Future<BowelRecord> create(int bristolType, {DateTime? recordedAt}) =>
+  Future<BowelRecord> create(
+    int bristolType, {
+    DateTime? recordedAt,
+    RecordDetails details = const RecordDetails(),
+  }) => throw UnimplementedError();
+
+  @override
+  Future<ImportPlan> importRecords(List<BowelRecord> records) =>
       throw UnimplementedError();
 
   @override
+  Future<int> deleteAll() => throw UnimplementedError();
+
+  @override
   Future<void> delete(String recordId) => throw UnimplementedError();
+
+  @override
+  Future<void> restore(BowelRecord record) => throw UnimplementedError();
 
   @override
   Future<List<BowelRecord>> loadAll() async => const <BowelRecord>[];
@@ -41,5 +65,6 @@ class _EmptyRepository implements BowelRecordRepository {
     String recordId,
     int bristolType, {
     DateTime? recordedAt,
+    RecordDetails? details,
   }) => throw UnimplementedError();
 }

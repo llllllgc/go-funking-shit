@@ -1,3 +1,7 @@
+import '../domain/record_transfer.dart';
+import '../domain/record_details.dart';
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../core/formatters.dart';
@@ -13,12 +17,31 @@ class LogDaySummary {
   bool get hasRecord => recordCount > 0;
 }
 
-class BowelLogController extends ChangeNotifier {
-  BowelLogController(this._repository, {DateTime Function()? now})
-    : _now = now ?? DateTime.now;
+/// One recovery opportunity. A new deletion gets a new identity, even when
+/// the same record is deleted again after being restored.
+class RecordRecovery {
+  RecordRecovery._(this.record);
 
+  final BowelRecord record;
+}
+
+class BowelLogController extends ChangeNotifier {
+  BowelLogController(
+    this._repository, {
+    DateTime Function()? now,
+    this.onDispose,
+    bool Function()? canWrite,
+  }) : _now = now ?? DateTime.now,
+       _canWrite = canWrite ?? _alwaysAllow;
+
+  static bool _alwaysAllow() => true;
+  final bool Function() _canWrite;
   final BowelRecordRepository _repository;
   final DateTime Function() _now;
+  final Future<void> Function()? onDispose;
+  bool _disposed = false;
+  bool _hasLoaded = false;
+  bool get hasLoaded => _hasLoaded;
 
   List<BowelRecord> _records = const <BowelRecord>[];
   DateTime _currentDate = dateOnly(DateTime.now());
@@ -26,14 +49,39 @@ class BowelLogController extends ChangeNotifier {
   bool _isWorking = false;
   String? _feedbackMessage;
   String? _errorMessage;
+  RecordRecovery? _failedRecovery;
+  DateTime? _lastSavedAt;
+  DateTime? get lastSavedAt => _lastSavedAt;
+  final Map<String, RecordRecovery> _deletedRecords = {};
 
-  List<BowelRecord> get records => List<BowelRecord>.unmodifiable(_records);
+  /// Immutable snapshots retain identity until a successful data change.
+  List<BowelRecord> get records => _records;
   DateTime get currentDate => _currentDate;
   DateTime get now => _now();
   bool get isLoading => _isLoading;
   bool get isWorking => _isWorking;
   String? get feedbackMessage => _feedbackMessage;
   String? get errorMessage => _errorMessage;
+
+  /// Returns a deleted record while its undo action is still available.
+  ///
+  /// The controller keeps the complete record in memory so a restore can
+  /// preserve its original id, occurrence time, and update timestamp.
+  BowelRecord? deletedRecord(String recordId) => recoveryFor(recordId)?.record;
+
+  RecordRecovery? recoveryFor(String recordId) => _deletedRecords[recordId];
+
+  /// Drop the in-memory copy when its recovery prompt is dismissed. An old
+  /// prompt must never discard a later deletion of the same record.
+  void dismissRecovery(RecordRecovery recovery) {
+    final id = recovery.record.recordId;
+    if (identical(_deletedRecords[id], recovery)) _deletedRecords.remove(id);
+    if (identical(_failedRecovery, recovery)) {
+      _failedRecovery = null;
+      _errorMessage = null;
+      notifyListeners();
+    }
+  }
 
   List<BowelRecord> get todayRecords => _records
       .where((record) => isSameDate(record.recordedAt, _currentDate))
@@ -49,16 +97,28 @@ class BowelLogController extends ChangeNotifier {
       .toList(growable: false);
 
   List<LogDaySummary> get lastSevenDays {
-    return List<LogDaySummary>.generate(7, (index) {
+    return summariesForDays(7);
+  }
+
+  List<LogDaySummary> get lastThirtyDays {
+    return summariesForDays(30);
+  }
+
+  /// Returns one summary per calendar day, oldest first, ending on the
+  /// controller's current day. Keeping this in the controller means the
+  /// home screen and future trend views use the same date boundary.
+  List<LogDaySummary> summariesForDays(int dayCount) {
+    final totalDays = dayCount < 1 ? 1 : dayCount;
+    return List<LogDaySummary>.generate(totalDays, (index) {
       final date = DateTime(
         _currentDate.year,
         _currentDate.month,
-        _currentDate.day - 6 + index,
+        _currentDate.day - totalDays + 1 + index,
       );
-      final count = _records
+      final recordCount = _records
           .where((record) => isSameDate(record.recordedAt, date))
           .length;
-      return LogDaySummary(date: date, recordCount: count);
+      return LogDaySummary(date: date, recordCount: recordCount);
     });
   }
 
@@ -71,9 +131,13 @@ class BowelLogController extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
+    if (_isWorking) return;
     _currentDate = dateOnly(_now());
+    _isLoading = true;
+    _errorMessage = null;
     try {
       await _reload();
+      _hasLoaded = true;
     } catch (_) {
       _errorMessage = '没有读取成功，请重新打开应用';
     } finally {
@@ -95,6 +159,7 @@ class BowelLogController extends ChangeNotifier {
     }
     _feedbackMessage = null;
     _errorMessage = null;
+    _failedRecovery = null;
     notifyListeners();
   }
 
@@ -102,8 +167,16 @@ class BowelLogController extends ChangeNotifier {
     int bristolType, {
     String? editRecordId,
     DateTime? recordedAt,
+    RecordDetails? details,
   }) async {
-    if (_isWorking || bristolType < 1 || bristolType > 7) return false;
+    if (_isWorking ||
+        _isLoading ||
+        !_hasLoaded ||
+        bristolType < 1 ||
+        bristolType > 7) {
+      return false;
+    }
+    if (!_checkWriteAccess()) return false;
     final actionTime = _now();
     if (recordedAt != null &&
         (recordedAt.isAfter(actionTime) ||
@@ -120,6 +193,7 @@ class BowelLogController extends ChangeNotifier {
         saved = await _repository.create(
           bristolType,
           recordedAt: recordedAt ?? actionTime,
+          details: (details ?? const RecordDetails()).validated(),
         );
       } else {
         final old = record(editRecordId);
@@ -128,14 +202,17 @@ class BowelLogController extends ChangeNotifier {
           editRecordId,
           bristolType,
           recordedAt: recordedAt,
+          details: details?.validated(),
         );
         saved = BowelRecord(
           recordId: old.recordId,
           bristolType: bristolType,
           recordedAt: recordedAt ?? old.recordedAt,
           updatedAt: actionTime,
+          details: (details ?? old.details).validated(),
         );
       }
+      _lastSavedAt = saved.recordedAt;
       // Once the write succeeds, update locally. A failed follow-up read must
       // never invite a retry that creates a duplicate record.
       _records = [
@@ -158,28 +235,158 @@ class BowelLogController extends ChangeNotifier {
     }
   }
 
-  Future<void> undo(String recordId) =>
-      _delete(recordId, successMessage: '已撤销', failureMessage: '没有撤销成功，请再试一次');
+  Future<void> undo(String recordId) async {
+    // This is the existing quick action on the home screen: remove the
+    // latest record. A separate restoreRecord method handles undoing a
+    // deletion from a snackbar or other transient UI affordance.
+    await _delete(
+      recordId,
+      successMessage: '已撤销',
+      failureMessage: '没有撤销成功，请再试一次',
+    );
+  }
 
-  Future<void> deleteRecord(String recordId) =>
+  Future<BowelRecord?> deleteRecord(String recordId) =>
       _delete(recordId, successMessage: '已删除', failureMessage: '没有删除成功，请再试一次');
 
-  Future<void> _delete(
+  /// Restores a record deleted through [deleteRecord] or [undo].
+  ///
+  /// Failures retain the original recovery opportunity for an explicit retry.
+  /// The optional identity rejects actions from obsolete recovery prompts.
+  Future<bool> restoreRecord(
+    String recordId, {
+    RecordRecovery? expectedRecovery,
+  }) async {
+    if (_isWorking || _isLoading || !_hasLoaded || recordId.trim().isEmpty) {
+      return false;
+    }
+    if (!_checkWriteAccess()) return false;
+    final recovery = _deletedRecords[recordId];
+    if (recovery == null ||
+        (expectedRecovery != null && !identical(recovery, expectedRecovery))) {
+      return false;
+    }
+    final deleted = recovery.record;
+    _beginAction();
+    try {
+      await _repository.restore(deleted);
+      _deletedRecords.remove(recordId);
+      _records = <BowelRecord>[..._records, deleted];
+      _sortRecords();
+      _feedbackMessage = '已恢复';
+      return true;
+    } catch (_) {
+      if (identical(_deletedRecords[recordId], recovery)) {
+        _failedRecovery = recovery;
+        _errorMessage = '没有恢复成功，请在提示条中重试';
+      } else {
+        _errorMessage = '没有恢复成功';
+      }
+      return false;
+    } finally {
+      _endAction();
+    }
+  }
+
+  Future<BowelRecord?> _delete(
     String recordId, {
     required String successMessage,
     required String failureMessage,
   }) async {
-    if (_isWorking || recordId.trim().isEmpty) return;
+    if (_isWorking || _isLoading || !_hasLoaded || recordId.trim().isEmpty) {
+      return null;
+    }
+    if (!_checkWriteAccess()) return null;
+    final deleted = record(recordId);
+    if (deleted == null) {
+      _errorMessage = failureMessage;
+      notifyListeners();
+      return null;
+    }
     _beginAction();
     try {
       await _repository.delete(recordId);
-      await _reload();
+      // The delete has already been committed when repository.delete
+      // resolves. Updating the in-memory snapshot directly avoids turning a
+      // successful deletion into a misleading failure if a follow-up read is
+      // temporarily unavailable.
+      _records = List<BowelRecord>.unmodifiable(
+        _records.where((record) => record.recordId != recordId),
+      );
+      _deletedRecords[recordId] = RecordRecovery._(deleted);
       _feedbackMessage = successMessage;
+      return deleted;
     } catch (_) {
       _errorMessage = failureMessage;
+      return null;
     } finally {
       _endAction();
     }
+  }
+
+  Future<ImportPlan?> importRecords(List<BowelRecord> records) async {
+    if (_isWorking || _isLoading || !_hasLoaded) return null;
+    if (!_checkWriteAccess()) return null;
+    _beginAction();
+    try {
+      final result = await _repository.importRecords(records);
+      // The transaction has already committed. Do not turn a subsequent read
+      // failure into a misleading import error and invite duplicate retries.
+      _records = [..._records, ...result.additions];
+      _sortRecords();
+      _deletedRecords.clear();
+      _currentDate = dateOnly(_now());
+      _feedbackMessage = '已导入 ${result.additions.length} 条记录';
+      return result;
+    } catch (_) {
+      _errorMessage = '没有导入成功，已有记录未更改，请再试一次';
+      return null;
+    } finally {
+      _endAction();
+    }
+  }
+
+  Future<bool> clearAllRecords() async {
+    if (_isWorking || _isLoading || !_hasLoaded) return false;
+    if (!_checkWriteAccess()) return false;
+    _beginAction();
+    try {
+      await _repository.deleteAll();
+      _records = const [];
+      _lastSavedAt = null;
+      _deletedRecords.clear();
+      _feedbackMessage = '本机记录已清空';
+      return true;
+    } catch (_) {
+      _errorMessage = '没有清空成功，请再试一次';
+      return false;
+    } finally {
+      _endAction();
+    }
+  }
+
+  bool _checkWriteAccess() {
+    if (_disposed) return false;
+    if (_canWrite()) return true;
+    _feedbackMessage = null;
+    _errorMessage = '应用已锁定或离开前台，请返回后重试。';
+    notifyListeners();
+    return false;
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _failedRecovery = null;
+    _lastSavedAt = null;
+    _deletedRecords.clear();
+    if (onDispose != null) unawaited(onDispose!());
+    super.dispose();
   }
 
   Future<void> _reload() async {
@@ -189,14 +396,17 @@ class BowelLogController extends ChangeNotifier {
   }
 
   void _sortRecords() {
-    _records.sort((a, b) {
-      final byTime = b.recordedAt.compareTo(a.recordedAt);
-      return byTime != 0 ? byTime : b.recordId.compareTo(a.recordId);
-    });
+    final sorted = List<BowelRecord>.of(_records)
+      ..sort((a, b) {
+        final byTime = b.recordedAt.compareTo(a.recordedAt);
+        return byTime != 0 ? byTime : b.recordId.compareTo(a.recordId);
+      });
+    _records = List<BowelRecord>.unmodifiable(sorted);
   }
 
   void _beginAction() {
     _isWorking = true;
+    _failedRecovery = null;
     _feedbackMessage = null;
     _errorMessage = null;
     notifyListeners();

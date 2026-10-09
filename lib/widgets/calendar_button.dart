@@ -26,6 +26,7 @@ class CalendarButton extends StatelessWidget {
       excludeFromSemantics: true,
       child: Pressable(
         semanticLabel: label,
+        enabled: active,
         onPressed: onPressed,
         child: SizedBox(
           width: 48,
@@ -53,7 +54,6 @@ class CalendarButton extends StatelessWidget {
                         child: Text(
                           '今',
                           textAlign: TextAlign.center,
-                          textScaler: TextScaler.noScaling,
                           style: pixelStyle(size: 13, height: 1, color: color),
                         ),
                       ),

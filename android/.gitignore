@@ -12,3 +12,9 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Kotlin build cache
+.kotlin/
+
+# Local Gradle diagnostics and intermediate output
+build/
