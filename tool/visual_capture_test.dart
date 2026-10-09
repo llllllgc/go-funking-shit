@@ -1,3 +1,4 @@
+import 'package:lalema/screens/knowledge_screen.dart';
 import 'package:lalema/screens/settings_screen.dart';
 import 'package:lalema/application/reminder_controller.dart';
 import 'package:lalema/data/reminder_service.dart';
@@ -115,6 +116,51 @@ void main() {
       matchesGoldenFile('captures/reminder_denied_375.png'),
     );
   });
+
+  for (final scale in [1.0, 2.0]) {
+    testWidgets('capture expanded knowledge sources at text scale $scale', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = scale > 1
+          ? const Size(320, 640)
+          : const Size(375, 812);
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final now = DateTime(2026, 10, 9, 12);
+      final controller = BowelLogController(
+        MemoryRepository(now),
+        now: () => now,
+      );
+      await controller.initialize();
+      const captureKey = Key('knowledge-source-capture');
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: captureKey,
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light,
+            home: KnowledgeScreen(controller: controller),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(
+        find.byKey(const Key('knowledge-featured-open')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('knowledge-featured-open')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('参考来源'));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byKey(captureKey),
+        matchesGoldenFile('captures/knowledge_sources_$scale.png'),
+      );
+    });
+  }
 
   testWidgets('capture backup import preview', (tester) async {
     tester.view.devicePixelRatio = 1;

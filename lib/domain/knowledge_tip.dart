@@ -7,8 +7,24 @@ enum KnowledgeCategory {
   alert('要留意');
 
   const KnowledgeCategory(this.label);
-
   final String label;
+}
+
+class KnowledgeSource {
+  const KnowledgeSource({
+    required this.id,
+    required this.organization,
+    required this.title,
+    required this.url,
+    required this.checkedOn,
+  });
+  final String id;
+  final String organization;
+  final String title;
+  final String url;
+
+  /// Editorial link/content check, not clinical certification or source revision.
+  final String checkedOn;
 }
 
 class KnowledgeTip {
@@ -18,17 +34,14 @@ class KnowledgeTip {
     required this.title,
     required this.summary,
     required this.details,
-    required this.source,
+    required this.sources,
     this.tags = const <String>[],
-    this.featured = false,
   });
-
   final String id;
   final KnowledgeCategory category;
   final String title;
   final String summary;
   final List<String> details;
-  final String source;
+  final List<KnowledgeSource> sources;
   final List<String> tags;
-  final bool featured;
 }

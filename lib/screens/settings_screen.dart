@@ -96,6 +96,11 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 const Text(
+                  '打开小纸条的原文会进入外部浏览器并使用网络；应用不会在来源链接中附带你的记录。',
+                  style: TextStyle(color: AppColors.inkMuted, height: 1.5),
+                ),
+                const SizedBox(height: 12),
+                const Text(
                   '应用不读取或保存系统验证的密码、指纹或面容数据。应用锁不能抵御设备被破解或其他人掌握设备解锁凭据的情况。',
                   style: TextStyle(color: AppColors.inkMuted, height: 1.5),
                 ),

@@ -1,3 +1,5 @@
+import '../data/knowledge_base.dart';
+import '../widgets/knowledge_sources.dart';
 // Hallmark · genre: playful · macrostructure: single-task-list · design-system: locked LaLeMa
 // Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V4
 import 'package:flutter/material.dart';
@@ -267,6 +269,8 @@ class _RecordScreenState extends State<RecordScreen> {
                     _GuideRow(type: type),
                     const SizedBox(height: 6),
                   ],
+                  const SizedBox(height: 16),
+                  const KnowledgeSources(sources: [KnowledgeBase.bristol]),
                 ],
               ),
             ),

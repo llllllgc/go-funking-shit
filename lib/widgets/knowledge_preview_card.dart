@@ -20,7 +20,7 @@ class KnowledgePreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Pressable(
       key: const Key('knowledge-preview'),
-      semanticLabel: '打开小纸条：${tip.title}',
+      semanticLabel: '打开小纸条：${tip.title}。${tip.summary}',
       onPressed: onPressed,
       child: Stack(
         children: <Widget>[
