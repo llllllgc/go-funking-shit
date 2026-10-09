@@ -185,3 +185,9 @@ Android Debug、iOS Debug 模拟器与 iOS 未签名 ARM64 Release 均构建成�
 Android 测试包 `build/deliverables/lalema-1.11.0+13-debug.apk`，SHA-256 `71c44b3ea7879d626a7d1c0075010e135535b2bad1f900275c8d774edbff423f`。发布资料包另存于 `build/deliverables/lalema-1.11.0-release-materials.zip`，包含同源文档、商店草案、截图清单及预览入口。
 
 整体发布目标仍需发布者与联系方式、资产/源码授权确认、正式签名、完整设备流程验收。此次 CI 单独核验，不沿用前一版通过状态。
+
+## 1.11.0 原生界面回归补充
+
+新增独立 RunnerUITests 目标及 [运行说明](ios-ui-tests.md)。2026-10-09 在全新 iPhone 17 Pro / iOS 26.4 模拟器上，正常入口完成“选择 04 型 → 保存 → 终止应用 → 重启 → 历史页核对”，**1 项 XCTest 界面测试通过**，确认恰好保留一条记录。使用真实 SQLite 和合成输入，没有注入测试仓库。
+
+最终结果为 `build/ui-test-results/run.xMTCPn/results.xcresult`；脚本结束后清理本次模拟器和临时构建目录。此前按钮标签定位失败已修正，失败结果不计入通过证据。项目文件、scheme 和脚本语法检查通过。本项目前为本地测试，未加入远程 CI；不据此声明文件选择器、通知、身份验证、读屏或真机验收通过。
