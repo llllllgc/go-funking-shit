@@ -1,3 +1,7 @@
+import 'package:lalema/screens/settings_screen.dart';
+import 'package:lalema/application/reminder_controller.dart';
+import 'package:lalema/data/reminder_service.dart';
+import '../test/support/reminder_fakes.dart';
 import '../test/support/privacy_fakes.dart';
 import '../test/support/memory_repository.dart';
 import 'package:lalema/screens/data_screen.dart';
@@ -48,6 +52,7 @@ void main() {
         RepaintBoundary(
           key: captureKey,
           child: LaLeMaApp(
+            reminders: await quietReminders(),
             controller: controller,
             privacy: await unlockedPrivacy(),
           ),
@@ -67,6 +72,49 @@ void main() {
       );
     });
   }
+
+  testWidgets('capture reminder permission and enabled settings', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(375, 812);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final service = FakeReminderService()
+      ..permission = ReminderPermission.allowed;
+    final controller = ReminderController(service);
+    await controller.refresh();
+    await controller.setEnabled(true);
+    const captureKey = Key('reminder-capture');
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: captureKey,
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          home: SettingsScreen(
+            privacy: await unlockedPrivacy(),
+            reminders: controller,
+            onData: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('按自己的节奏记录'));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(captureKey),
+      matchesGoldenFile('captures/reminder_enabled_375.png'),
+    );
+    service.permission = ReminderPermission.denied;
+    await controller.refresh();
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(captureKey),
+      matchesGoldenFile('captures/reminder_denied_375.png'),
+    );
+  });
 
   testWidgets('capture backup import preview', (tester) async {
     tester.view.devicePixelRatio = 1;
@@ -132,7 +180,11 @@ void main() {
     await tester.pumpWidget(
       RepaintBoundary(
         key: captureKey,
-        child: LaLeMaApp(controller: controller, privacy: privacy),
+        child: LaLeMaApp(
+          reminders: await quietReminders(),
+          controller: controller,
+          privacy: privacy,
+        ),
       ),
     );
     await tester.pumpAndSettle();

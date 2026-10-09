@@ -10,6 +10,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterFragmentActivity() {
+    private var reminders: ReminderChannel? = null
     private var cover: View? = null
     private var foreground = false
     private var coverEpoch = 0L
@@ -23,6 +24,9 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        reminders = ReminderChannel(this)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "lalema/reminders")
+            .setMethodCallHandler { call, result -> reminders!!.handle(call, result) }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "lalema/privacy_screen")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -44,6 +48,11 @@ class MainActivity : FlutterFragmentActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == ReminderService.PERMISSION_REQUEST) reminders?.permissionReturned()
     }
 
     override fun onPause() {

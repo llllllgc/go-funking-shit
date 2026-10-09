@@ -1,3 +1,4 @@
+import 'support/reminder_fakes.dart';
 import 'package:lalema/application/privacy_controller.dart';
 import 'package:lalema/application/app_session.dart';
 import 'support/privacy_fakes.dart';
@@ -34,7 +35,11 @@ void main() {
             MemoryRepository(DateTime(2026, 10, 9)),
           );
           await log.initialize();
-          return AppSession(log: log, privacy: privacy);
+          return AppSession(
+            reminders: await quietReminders(),
+            log: log,
+            privacy: privacy,
+          );
         },
       ),
     );
@@ -66,6 +71,7 @@ void main() {
             final controller = BowelLogController(repository);
             await controller.initialize();
             return AppSession(
+              reminders: await quietReminders(),
               log: controller,
               privacy: await unlockedPrivacy(),
             );
@@ -97,7 +103,11 @@ void main() {
     );
     await controller.initialize();
     gate.complete(
-      AppSession(log: controller, privacy: await unlockedPrivacy()),
+      AppSession(
+        reminders: await quietReminders(),
+        log: controller,
+        privacy: await unlockedPrivacy(),
+      ),
     );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);

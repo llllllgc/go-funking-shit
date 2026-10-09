@@ -50,6 +50,8 @@ jobs:
           channel: stable
       - run: flutter pub get --enforce-lockfile
       - run: flutter build apk --debug --no-pub
+      - name: Native Android reminder calendar tests
+        run: cd android && ./gradlew :app:testDebugUnitTest
       - name: Verify release refuses missing signing credentials
         run: bash tool/check_release_signing.sh
 
@@ -66,3 +68,5 @@ jobs:
           channel: stable
       - run: flutter pub get --enforce-lockfile
       - run: flutter build ios --simulator --debug --no-pub
+      - name: Native iOS reminder configuration and system API tests
+        run: bash tool/test_ios_native.sh

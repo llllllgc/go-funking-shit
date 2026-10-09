@@ -16,14 +16,21 @@ import 'screens/record_screen.dart';
 import 'screens/today_screen.dart';
 import 'domain/history_filter.dart';
 import 'application/privacy_controller.dart';
+import 'application/reminder_controller.dart';
 import 'widgets/privacy_gate.dart';
 import 'screens/settings_screen.dart';
 
 class LaLeMaApp extends StatelessWidget {
-  const LaLeMaApp({required this.controller, required this.privacy, super.key});
+  const LaLeMaApp({
+    required this.controller,
+    required this.privacy,
+    required this.reminders,
+    super.key,
+  });
 
   final BowelLogController controller;
   final PrivacyController privacy;
+  final ReminderController reminders;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +43,11 @@ class LaLeMaApp extends StatelessWidget {
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       builder: (context, child) =>
           PrivacyGate(controller: privacy, child: child!),
-      home: LaLeMaShell(controller: controller, privacy: privacy),
+      home: LaLeMaShell(
+        controller: controller,
+        privacy: privacy,
+        reminders: reminders,
+      ),
     );
   }
 }
@@ -45,11 +56,13 @@ class LaLeMaShell extends StatefulWidget {
   const LaLeMaShell({
     required this.controller,
     required this.privacy,
+    required this.reminders,
     super.key,
   });
 
   final BowelLogController controller;
   final PrivacyController privacy;
+  final ReminderController reminders;
 
   @override
   State<LaLeMaShell> createState() => _LaLeMaShellState();
@@ -99,6 +112,7 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      unawaited(widget.reminders.refresh());
       widget.controller.refreshDate();
       _scheduleDateRefresh();
     }
@@ -168,8 +182,11 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
     ScaffoldMessenger.of(context).removeCurrentSnackBar();
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (_) =>
-            SettingsScreen(privacy: widget.privacy, onData: _openData),
+        builder: (_) => SettingsScreen(
+          privacy: widget.privacy,
+          reminders: widget.reminders,
+          onData: _openData,
+        ),
       ),
     );
   }

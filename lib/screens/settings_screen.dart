@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../application/privacy_controller.dart';
+import '../application/reminder_controller.dart';
+import '../widgets/reminder_settings.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_theme.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({
     required this.privacy,
+    required this.reminders,
     required this.onData,
     super.key,
   });
   final PrivacyController privacy;
+  final ReminderController reminders;
   final VoidCallback onData;
 
   @override
@@ -65,6 +69,8 @@ class SettingsScreen extends StatelessWidget {
                       label: const Text('立即锁定'),
                     ),
                   ),
+                const Divider(height: 40),
+                ReminderSettings(controller: reminders),
                 const Divider(height: 40),
                 Text('数据与备份', style: pixelStyle(size: 20)),
                 const SizedBox(height: 12),

@@ -1,3 +1,4 @@
+import 'support/reminder_fakes.dart';
 import 'support/privacy_fakes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,7 +25,11 @@ void main() {
     controller = BowelLogController(repository, now: () => clock ?? now);
     await controller.initialize();
     await tester.pumpWidget(
-      LaLeMaApp(controller: controller, privacy: await unlockedPrivacy()),
+      LaLeMaApp(
+        reminders: await quietReminders(),
+        controller: controller,
+        privacy: await unlockedPrivacy(),
+      ),
     );
     await tester.pumpAndSettle();
   }

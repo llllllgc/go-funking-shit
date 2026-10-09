@@ -1,3 +1,4 @@
+import 'support/reminder_fakes.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -19,7 +20,11 @@ void main() {
     );
     await controller.initialize();
     await tester.pumpWidget(
-      LaLeMaApp(controller: controller, privacy: await unlockedPrivacy()),
+      LaLeMaApp(
+        reminders: await quietReminders(),
+        controller: controller,
+        privacy: await unlockedPrivacy(),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('记录'));
@@ -41,7 +46,11 @@ void main() {
     final controller = BowelLogController(repository, now: () => now);
     await controller.initialize();
     await tester.pumpWidget(
-      LaLeMaApp(controller: controller, privacy: await unlockedPrivacy()),
+      LaLeMaApp(
+        reminders: await quietReminders(),
+        controller: controller,
+        privacy: await unlockedPrivacy(),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('记录'));

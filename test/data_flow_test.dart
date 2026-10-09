@@ -1,3 +1,4 @@
+import 'support/reminder_fakes.dart';
 import 'dart:async';
 import 'package:lalema/application/privacy_controller.dart';
 import 'support/privacy_fakes.dart';
@@ -277,7 +278,11 @@ void main() {
   ) async {
     await launch(tester);
     await tester.pumpWidget(
-      LaLeMaApp(controller: controller, privacy: await unlockedPrivacy()),
+      LaLeMaApp(
+        reminders: await quietReminders(),
+        controller: controller,
+        privacy: await unlockedPrivacy(),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('历史'));

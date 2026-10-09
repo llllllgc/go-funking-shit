@@ -1,3 +1,4 @@
+import 'support/reminder_fakes.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -41,7 +42,11 @@ void main() {
     await controller.initialize();
     final privacy = await unlockedPrivacy();
     await tester.pumpWidget(
-      LaLeMaApp(controller: controller, privacy: privacy),
+      LaLeMaApp(
+        reminders: await quietReminders(),
+        controller: controller,
+        privacy: privacy,
+      ),
     );
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('删除'));

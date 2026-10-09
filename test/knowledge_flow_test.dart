@@ -1,3 +1,4 @@
+import 'support/reminder_fakes.dart';
 import 'support/privacy_fakes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,7 +24,11 @@ void main() {
     await controller.initialize();
 
     await tester.pumpWidget(
-      LaLeMaApp(controller: controller, privacy: await unlockedPrivacy()),
+      LaLeMaApp(
+        reminders: await quietReminders(),
+        controller: controller,
+        privacy: await unlockedPrivacy(),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const Key('knowledge-preview')));
@@ -61,7 +66,11 @@ void main() {
       await controller.initialize();
 
       await tester.pumpWidget(
-        LaLeMaApp(controller: controller, privacy: await unlockedPrivacy()),
+        LaLeMaApp(
+          reminders: await quietReminders(),
+          controller: controller,
+          privacy: await unlockedPrivacy(),
+        ),
       );
       await tester.pumpAndSettle();
 

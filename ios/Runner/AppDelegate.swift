@@ -1,18 +1,26 @@
 import Flutter
 import UIKit
+import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+  private let reminders = ReminderService()
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    UNUserNotificationCenter.current().delegate = self
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     guard let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "LalemaPrivacyScreen") else { return }
+    let reminderChannel = FlutterMethodChannel(name: "lalema/reminders", binaryMessenger: registrar.messenger())
+    reminderChannel.setMethodCallHandler { [weak self] call, result in
+      self?.reminders.handle(call, result: result)
+    }
     let channel = FlutterMethodChannel(name: "lalema/privacy_screen", binaryMessenger: registrar.messenger())
     channel.setMethodCallHandler { call, result in
       switch call.method {
@@ -40,4 +48,30 @@ import UIKit
       }
     }
   }
+  override func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    if [ReminderService.dailyID, ReminderService.testID].contains(notification.request.identifier) {
+      completionHandler([.banner, .list, .sound])
+    } else {
+      super.userNotificationCenter(center, willPresent: notification, withCompletionHandler: completionHandler)
+    }
+  }
+
+  override func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse,
+    withCompletionHandler completionHandler: @escaping () -> Void
+  ) {
+    if [ReminderService.dailyID, ReminderService.testID].contains(response.notification.request.identifier) {
+      // Opening the app follows its normal privacy gate; never write a record
+      // or navigate around authentication from a notification response.
+      completionHandler()
+    } else {
+      super.userNotificationCenter(center, didReceive: response, withCompletionHandler: completionHandler)
+    }
+  }
+
 }

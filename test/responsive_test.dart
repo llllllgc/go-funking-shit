@@ -1,3 +1,4 @@
+import 'support/reminder_fakes.dart';
 import 'support/privacy_fakes.dart';
 import 'package:lalema/domain/record_transfer.dart';
 import 'package:lalema/domain/record_details.dart';
@@ -40,7 +41,11 @@ void main() {
         );
         await controller.initialize();
         await tester.pumpWidget(
-          LaLeMaApp(controller: controller, privacy: await unlockedPrivacy()),
+          LaLeMaApp(
+            reminders: await quietReminders(),
+            controller: controller,
+            privacy: await unlockedPrivacy(),
+          ),
         );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);

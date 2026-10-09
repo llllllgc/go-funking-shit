@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/widgets.dart';
 
 import 'application/app_session.dart';
+import 'application/reminder_controller.dart';
+import 'data/reminder_service.dart';
 import 'application/bowel_log_controller.dart';
 import 'application/privacy_controller.dart';
 import 'bootstrap.dart';
@@ -19,6 +22,10 @@ Future<AppSession> _loadSession() async {
     auth: SystemDeviceAuthenticator(),
     screen: const NativePrivacyScreen(),
   );
+  final reminders = ReminderController(
+    const NativeReminderService(),
+    canInteract: () => privacy.allowsInteraction(privacy.accessEpoch),
+  );
   final log = BowelLogController(
     repository,
     canWrite: () => privacy.allowsInteraction(privacy.accessEpoch),
@@ -27,9 +34,17 @@ Future<AppSession> _loadSession() async {
     await privacy.initialize();
     await log.initialize();
     if (!log.hasLoaded) throw StateError('Unable to load local records');
-    return AppSession(log: log, privacy: privacy, close: repository.close);
+    // Optional reminders must never delay access to the log.
+    unawaited(reminders.refresh());
+    return AppSession(
+      log: log,
+      privacy: privacy,
+      reminders: reminders,
+      close: repository.close,
+    );
   } catch (_) {
     privacy.dispose();
+    reminders.dispose();
     log.dispose();
     await repository.close();
     rethrow;

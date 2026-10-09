@@ -57,7 +57,11 @@ class _AppBootstrapState extends State<AppBootstrap> {
     return PrivacySurface(
       screen: widget.screen,
       child: _session != null
-          ? LaLeMaApp(controller: _session!.log, privacy: _session!.privacy)
+          ? LaLeMaApp(
+              controller: _session!.log,
+              privacy: _session!.privacy,
+              reminders: _session!.reminders,
+            )
           : _startup(),
     );
   }
