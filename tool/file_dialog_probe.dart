@@ -1,3 +1,5 @@
+import 'package:lalema/widgets/privacy_surface.dart';
+import 'package:lalema/data/privacy_services.dart';
 // Debug-only entry point for an isolated simulator. It never loads the app's
 // database and only offers an empty, synthetic archive to the document picker.
 import 'package:flutter/foundation.dart';
@@ -7,7 +9,12 @@ import 'package:lalema/data/record_archive.dart';
 
 void main() {
   if (kReleaseMode) throw StateError('File dialog probe is debug-only');
-  runApp(const MaterialApp(home: _Probe()));
+  runApp(
+    const PrivacySurface(
+      screen: NativePrivacyScreen(),
+      child: MaterialApp(home: _Probe()),
+    ),
+  );
 }
 
 class _Probe extends StatefulWidget {

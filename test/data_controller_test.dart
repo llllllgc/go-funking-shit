@@ -17,6 +17,37 @@ void main() {
     details: const RecordDetails(note: '导入完整细节', discomfortMask: 8),
   );
 
+  test(
+    'a closed access policy rejects delayed mutations without touching storage',
+    () async {
+      var allowed = true;
+      final repository = MemoryRepository(now);
+      final controller = BowelLogController(
+        repository,
+        now: () => now,
+        canWrite: () => allowed,
+      );
+      await controller.initialize();
+      await controller.saveType(4);
+      final id = controller.records.single.recordId;
+      allowed = false;
+      expect(await controller.saveType(5), isFalse);
+      expect(await controller.saveType(5, editRecordId: id), isFalse);
+      expect(await controller.deleteRecord(id), isNull);
+      expect(await controller.importRecords([incoming()]), isNull);
+      expect(await controller.clearAllRecords(), isFalse);
+      expect(controller.records.single.bristolType, 4);
+      expect(repository.records, hasLength(1));
+      allowed = true;
+      await controller.deleteRecord(id);
+      allowed = false;
+      expect(await controller.restoreRecord(id), isFalse);
+      expect(repository.records, isEmpty);
+      allowed = true;
+      expect(await controller.restoreRecord(id), isTrue);
+    },
+  );
+
   test('record snapshots are immutable and detached after writes', () async {
     final repository = MemoryRepository(now);
     final controller = BowelLogController(repository, now: () => now);

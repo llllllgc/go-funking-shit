@@ -15,11 +15,15 @@ import 'screens/knowledge_screen.dart';
 import 'screens/record_screen.dart';
 import 'screens/today_screen.dart';
 import 'domain/history_filter.dart';
+import 'application/privacy_controller.dart';
+import 'widgets/privacy_gate.dart';
+import 'screens/settings_screen.dart';
 
 class LaLeMaApp extends StatelessWidget {
-  const LaLeMaApp({required this.controller, super.key});
+  const LaLeMaApp({required this.controller, required this.privacy, super.key});
 
   final BowelLogController controller;
+  final PrivacyController privacy;
 
   @override
   Widget build(BuildContext context) {
@@ -30,15 +34,22 @@ class LaLeMaApp extends StatelessWidget {
       locale: const Locale('zh', 'CN'),
       supportedLocales: const [Locale('zh', 'CN')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      home: LaLeMaShell(controller: controller),
+      builder: (context, child) =>
+          PrivacyGate(controller: privacy, child: child!),
+      home: LaLeMaShell(controller: controller, privacy: privacy),
     );
   }
 }
 
 class LaLeMaShell extends StatefulWidget {
-  const LaLeMaShell({required this.controller, super.key});
+  const LaLeMaShell({
+    required this.controller,
+    required this.privacy,
+    super.key,
+  });
 
   final BowelLogController controller;
+  final PrivacyController privacy;
 
   @override
   State<LaLeMaShell> createState() => _LaLeMaShellState();
@@ -147,7 +158,18 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
     widget.controller.clearFeedback();
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (_) => DataScreen(controller: widget.controller),
+        builder: (_) =>
+            DataScreen(controller: widget.controller, privacy: widget.privacy),
+      ),
+    );
+  }
+
+  Future<void> _openSettings() async {
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) =>
+            SettingsScreen(privacy: widget.privacy, onData: _openData),
       ),
     );
   }
@@ -177,6 +199,7 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
         onEdit: (id) => _openRecord(recordId: id),
         onCalendar: _openCalendar,
         onKnowledge: _openKnowledge,
+        onSettings: _openSettings,
       );
     }
     return HistoryScreen(

@@ -1,3 +1,4 @@
+import '../test/support/privacy_fakes.dart';
 import 'package:lalema/screens/data_screen.dart';
 import 'package:lalema/data/backup_files.dart';
 import 'package:lalema/data/record_archive.dart';
@@ -42,7 +43,11 @@ void main() {
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light,
-          home: DataScreen(controller: controller, files: _PreviewFiles(now)),
+          home: DataScreen(
+            controller: controller,
+            privacy: await unlockedPrivacy(),
+            files: _PreviewFiles(now),
+          ),
         ),
       ),
     );
@@ -79,11 +84,12 @@ void main() {
       now: () => now,
     );
     await controller.initialize();
+    final privacy = await unlockedPrivacy();
     const captureKey = Key('capture');
     await tester.pumpWidget(
       RepaintBoundary(
         key: captureKey,
-        child: LaLeMaApp(controller: controller),
+        child: LaLeMaApp(controller: controller, privacy: privacy),
       ),
     );
     await tester.pumpAndSettle();
@@ -104,6 +110,27 @@ void main() {
       find.byKey(captureKey),
       matchesGoldenFile('captures/home_375.png'),
     );
+
+    await tester.tap(find.byKey(const Key('today-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('settings-app-lock')));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(captureKey),
+      matchesGoldenFile('captures/privacy_settings_375.png'),
+    );
+    await tester.ensureVisible(find.byKey(const Key('settings-lock-now')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('settings-lock-now')));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(captureKey),
+      matchesGoldenFile('captures/privacy_locked_375.png'),
+    );
+    await tester.tap(find.byKey(const Key('privacy-unlock')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('返回'));
+    await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.byKey(const Key('knowledge-preview')));
     await tester.tap(find.byKey(const Key('knowledge-preview')));

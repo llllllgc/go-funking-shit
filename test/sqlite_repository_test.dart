@@ -245,6 +245,41 @@ void main() {
     expect((await repository.loadAll()).single.toMap(), original.toMap());
   });
 
+  test('v2 upgrade adds durable lock setting without altering records', () async {
+    final db = await databaseFactoryFfi.openDatabase(
+      databasePath,
+      options: OpenDatabaseOptions(
+        version: 2,
+        onCreate: (db, _) async {
+          await db.execute(
+            "CREATE TABLE bowel_records (recordId TEXT PRIMARY KEY NOT NULL, bristolType INTEGER NOT NULL, recordedAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, note TEXT NOT NULL DEFAULT '', discomforts INTEGER NOT NULL DEFAULT 0)",
+          );
+        },
+      ),
+    );
+    final original = BowelRecord(
+      recordId: 'v2',
+      bristolType: 4,
+      recordedAt: now,
+      updatedAt: now,
+      details: const RecordDetails(note: '原记录'),
+    );
+    await db.insert('bowel_records', original.toMap());
+    await db.close();
+    final repository = await open();
+    expect(await repository.readLockEnabled(), isFalse);
+    expect((await repository.loadAll()).single.toMap(), original.toMap());
+    await repository.writeLockEnabled(true);
+    await repository.close();
+    final reopened = await open();
+    expect(await reopened.readLockEnabled(), isTrue);
+    await reopened.importRecords([original]);
+    await reopened.deleteAll();
+    expect(await reopened.readLockEnabled(), isTrue);
+    await reopened.writeLockEnabled(false);
+    expect(await reopened.readLockEnabled(), isFalse);
+  });
+
   test('reads legacy maps and rejects malformed details', () {
     final map = <String, Object>{
       'recordId': 'id',

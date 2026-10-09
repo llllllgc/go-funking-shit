@@ -1,3 +1,4 @@
+import 'support/privacy_fakes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lalema/app.dart';
@@ -22,7 +23,9 @@ void main() {
     repository = MemoryRepository(clock ?? now);
     controller = BowelLogController(repository, now: () => clock ?? now);
     await controller.initialize();
-    await tester.pumpWidget(LaLeMaApp(controller: controller));
+    await tester.pumpWidget(
+      LaLeMaApp(controller: controller, privacy: await unlockedPrivacy()),
+    );
     await tester.pumpAndSettle();
   }
 

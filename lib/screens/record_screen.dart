@@ -34,6 +34,7 @@ class _RecordScreenState extends State<RecordScreen> {
   int _discomfortMask = 0;
   bool _detailsMode = false;
   bool _allowPop = false;
+  bool _saving = false;
 
   bool get _hasDateControls =>
       widget.initialDate != null || widget.editRecordId != null;
@@ -71,7 +72,7 @@ class _RecordScreenState extends State<RecordScreen> {
   }
 
   Future<void> _requestBack() async {
-    if (widget.controller.isWorking) return;
+    if (_saving || widget.controller.isWorking) return;
     if (_hasUnsavedDetails) {
       final discard = await showDialog<bool>(
         context: context,
@@ -137,6 +138,7 @@ class _RecordScreenState extends State<RecordScreen> {
       const SizedBox(height: 8),
       TextField(
         key: const PageStorageKey('record-note'),
+        enableIMEPersonalizedLearning: false,
         controller: _note,
         enabled: enabled,
         minLines: 2,
@@ -275,7 +277,8 @@ class _RecordScreenState extends State<RecordScreen> {
   }
 
   Future<void> _save(int type) async {
-    if (widget.controller.isWorking) return;
+    if (_saving || widget.controller.isWorking) return;
+    setState(() => _saving = true);
     final saved = await widget.controller.saveType(
       type,
       editRecordId: widget.editRecordId,
@@ -283,12 +286,13 @@ class _RecordScreenState extends State<RecordScreen> {
       details: RecordDetails(note: _note.text, discomfortMask: _discomfortMask),
     );
     if (saved && mounted) {
+      final savedAt = widget.controller.lastSavedAt!;
       setState(() => _allowPop = true);
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
-      Navigator.of(
-        context,
-      ).pop(_hasDateControls ? _recordedAt : widget.controller.now);
+      Navigator.of(context).pop(savedAt);
+    } else if (mounted) {
+      setState(() => _saving = false);
     }
   }
 
@@ -390,7 +394,7 @@ class _RecordScreenState extends State<RecordScreen> {
                       : _hasDateControls
                       ? '补记'
                       : '记录一次',
-                  enabled: !controller.isWorking,
+                  enabled: !controller.isWorking && !_saving,
                   onBack: _requestBack,
                 ),
                 Expanded(

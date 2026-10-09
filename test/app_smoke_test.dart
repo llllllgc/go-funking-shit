@@ -1,3 +1,4 @@
+import 'support/privacy_fakes.dart';
 import 'package:lalema/domain/record_transfer.dart';
 import 'package:lalema/domain/record_details.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,7 +15,9 @@ void main() {
     );
     await controller.initialize();
 
-    await tester.pumpWidget(LaLeMaApp(controller: controller));
+    await tester.pumpWidget(
+      LaLeMaApp(controller: controller, privacy: await unlockedPrivacy()),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('今天'), findsWidgets);

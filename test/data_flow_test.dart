@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'package:lalema/application/privacy_controller.dart';
+import 'support/privacy_fakes.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -42,6 +45,7 @@ void main() {
   late MemoryRepository repository;
   late BowelLogController controller;
   late FakeBackupFiles files;
+  late PrivacyController privacy;
   BowelRecord record(String id, DateTime time, {String note = '私密备注'}) =>
       BowelRecord(
         recordId: id,
@@ -51,7 +55,11 @@ void main() {
         details: RecordDetails(note: note, discomfortMask: 1),
       );
 
-  Future<void> launch(WidgetTester tester, {double scale = 1}) async {
+  Future<void> launch(
+    WidgetTester tester, {
+    double scale = 1,
+    Future<Uint8List> Function(RecordArchive)? encoder,
+  }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(320, 640);
     tester.platformDispatcher.textScaleFactorTestValue = scale;
@@ -66,10 +74,16 @@ void main() {
     controller = BowelLogController(repository, now: () => now);
     await controller.initialize();
     files = FakeBackupFiles();
+    privacy = await unlockedPrivacy();
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: DataScreen(controller: controller, files: files),
+        home: DataScreen(
+          controller: controller,
+          privacy: privacy,
+          files: files,
+          backupEncoder: encoder,
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -105,6 +119,33 @@ void main() {
     await tester.pump();
     await idle(tester);
   }
+
+  testWidgets(
+    'an export finishing after backgrounding cannot open the save picker',
+    (tester) async {
+      final encoded = Completer<Uint8List>();
+      var encoderCalls = 0;
+      await launch(
+        tester,
+        encoder: (_) {
+          encoderCalls++;
+          return encoded.future;
+        },
+      );
+      await tester.ensureVisible(find.byKey(const Key('backup-save')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('backup-save')));
+      await tester.pump();
+      expect(encoderCalls, 1);
+      privacy.lifecycleChanged(AppLifecycleState.paused);
+      privacy.lifecycleChanged(AppLifecycleState.resumed);
+      encoded.complete(Uint8List.fromList([1, 2, 3]));
+      await idle(tester);
+      expect(files.savedBytes, isNull);
+      expect(find.text('应用已离开或锁定，请解锁后重新导出。'), findsOneWidget);
+      expect(controller.records, hasLength(2));
+    },
+  );
 
   testWidgets('full JSON backup and limited CSV export have different scopes', (
     tester,
@@ -235,7 +276,9 @@ void main() {
     tester,
   ) async {
     await launch(tester);
-    await tester.pumpWidget(LaLeMaApp(controller: controller));
+    await tester.pumpWidget(
+      LaLeMaApp(controller: controller, privacy: await unlockedPrivacy()),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('历史'));
     await tester.pumpAndSettle();

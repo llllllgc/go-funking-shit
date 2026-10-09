@@ -1,3 +1,4 @@
+import 'privacy_services.dart';
 import '../domain/record_transfer.dart';
 import 'record_archive.dart';
 import '../domain/record_details.dart';
@@ -8,10 +9,11 @@ import 'package:uuid/uuid.dart';
 import '../domain/bowel_record.dart';
 import 'bowel_record_repository.dart';
 
-class SqliteBowelRecordRepository implements BowelRecordRepository {
+class SqliteBowelRecordRepository
+    implements BowelRecordRepository, AppLockStore {
   SqliteBowelRecordRepository._(this._database, this._uuid, this._now);
 
-  static const schemaVersion = 2;
+  static const schemaVersion = 3;
   static const _table = 'bowel_records';
   final Database _database;
   final Uuid _uuid;
@@ -44,6 +46,7 @@ class SqliteBowelRecordRepository implements BowelRecordRepository {
           await db.execute(
             'CREATE INDEX index_bowel_records_recordedAt ON $_table(recordedAt)',
           );
+          await _createSettings(db);
         },
         onUpgrade: (db, oldVersion, _) async {
           // sqflite wraps onUpgrade in a transaction. Never rebuild or clear
@@ -56,6 +59,7 @@ class SqliteBowelRecordRepository implements BowelRecordRepository {
               'ALTER TABLE $_table ADD COLUMN discomforts INTEGER NOT NULL DEFAULT 0',
             );
           }
+          if (oldVersion < 3) await _createSettings(db);
         },
       ),
     );
@@ -64,6 +68,31 @@ class SqliteBowelRecordRepository implements BowelRecordRepository {
       const Uuid(),
       now ?? DateTime.now,
     );
+  }
+
+  static Future<void> _createSettings(Database db) => db.execute(
+    'CREATE TABLE app_settings (key TEXT PRIMARY KEY NOT NULL, value INTEGER NOT NULL CHECK(value IN (0,1)))',
+  );
+
+  @override
+  Future<bool> readLockEnabled() async {
+    final rows = await _database.query(
+      'app_settings',
+      where: 'key = ?',
+      whereArgs: ['app_lock'],
+    );
+    if (rows.isEmpty) return false;
+    final value = rows.single['value'];
+    if (value != 0 && value != 1) throw StateError('Invalid app lock setting');
+    return value == 1;
+  }
+
+  @override
+  Future<void> writeLockEnabled(bool enabled) async {
+    await _database.insert('app_settings', {
+      'key': 'app_lock',
+      'value': enabled ? 1 : 0,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> close() => _database.close();

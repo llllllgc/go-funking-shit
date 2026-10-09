@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../application/bowel_log_controller.dart';
+import '../application/privacy_controller.dart';
 import '../core/formatters.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_theme.dart';
@@ -22,11 +23,15 @@ Uint8List _encodeCsv((List<BowelRecord>, bool) message) =>
 class DataScreen extends StatefulWidget {
   const DataScreen({
     required this.controller,
+    required this.privacy,
     this.files = const DeviceBackupFiles(),
+    this.backupEncoder,
     super.key,
   });
   final BowelLogController controller;
+  final PrivacyController privacy;
   final BackupFiles files;
+  final Future<Uint8List> Function(RecordArchive)? backupEncoder;
 
   @override
   State<DataScreen> createState() => _DataScreenState();
@@ -71,7 +76,10 @@ class _DataScreenState extends State<DataScreen> {
   }
 
   Future<void> _run(Future<void> Function() operation) async {
-    if (_busy || widget.controller.isWorking || !widget.controller.hasLoaded) {
+    if (_busy ||
+        widget.controller.isWorking ||
+        !widget.controller.hasLoaded ||
+        widget.privacy.concealed) {
       return;
     }
     setState(() {
@@ -94,12 +102,19 @@ class _DataScreenState extends State<DataScreen> {
         ? widget.controller.records
         : _inRange(widget.controller.records);
     final now = widget.controller.now;
+    final accessEpoch = widget.privacy.accessEpoch;
     final bytes = backup
-        ? await compute(
-            _encodeArchive,
-            RecordArchive(records: snapshot, exportedAt: now),
-          )
+        ? await (widget.backupEncoder?.call(
+                RecordArchive(records: snapshot, exportedAt: now),
+              ) ??
+              compute(
+                _encodeArchive,
+                RecordArchive(records: snapshot, exportedAt: now),
+              ))
         : await compute(_encodeCsv, (snapshot, _includeDetails));
+    if (!mounted || !widget.privacy.allowsInteraction(accessEpoch)) {
+      throw const ArchiveException('应用已离开或锁定，请解锁后重新导出。');
+    }
     final suffix = backup ? 'json' : 'csv';
     final stamp = now
         .toIso8601String()

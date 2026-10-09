@@ -22,8 +22,12 @@ class BowelLogController extends ChangeNotifier {
     this._repository, {
     DateTime Function()? now,
     this.onDispose,
-  }) : _now = now ?? DateTime.now;
+    bool Function()? canWrite,
+  }) : _now = now ?? DateTime.now,
+       _canWrite = canWrite ?? _alwaysAllow;
 
+  static bool _alwaysAllow() => true;
+  final bool Function() _canWrite;
   final BowelRecordRepository _repository;
   final DateTime Function() _now;
   final Future<void> Function()? onDispose;
@@ -37,6 +41,8 @@ class BowelLogController extends ChangeNotifier {
   bool _isWorking = false;
   String? _feedbackMessage;
   String? _errorMessage;
+  DateTime? _lastSavedAt;
+  DateTime? get lastSavedAt => _lastSavedAt;
   final Map<String, BowelRecord> _deletedRecords = <String, BowelRecord>{};
 
   /// Immutable snapshots retain identity until a successful data change.
@@ -146,6 +152,7 @@ class BowelLogController extends ChangeNotifier {
         bristolType > 7) {
       return false;
     }
+    if (!_checkWriteAccess()) return false;
     final actionTime = _now();
     if (recordedAt != null &&
         (recordedAt.isAfter(actionTime) ||
@@ -181,6 +188,7 @@ class BowelLogController extends ChangeNotifier {
           details: (details ?? old.details).validated(),
         );
       }
+      _lastSavedAt = saved.recordedAt;
       // Once the write succeeds, update locally. A failed follow-up read must
       // never invite a retry that creates a duplicate record.
       _records = [
@@ -225,6 +233,7 @@ class BowelLogController extends ChangeNotifier {
     if (_isWorking || _isLoading || !_hasLoaded || recordId.trim().isEmpty) {
       return false;
     }
+    if (!_checkWriteAccess()) return false;
     final deleted = _deletedRecords[recordId];
     if (deleted == null) return false;
     _beginAction();
@@ -251,6 +260,7 @@ class BowelLogController extends ChangeNotifier {
     if (_isWorking || _isLoading || !_hasLoaded || recordId.trim().isEmpty) {
       return null;
     }
+    if (!_checkWriteAccess()) return null;
     final deleted = record(recordId);
     if (deleted == null) {
       _errorMessage = failureMessage;
@@ -280,6 +290,7 @@ class BowelLogController extends ChangeNotifier {
 
   Future<ImportPlan?> importRecords(List<BowelRecord> records) async {
     if (_isWorking || _isLoading || !_hasLoaded) return null;
+    if (!_checkWriteAccess()) return null;
     _beginAction();
     try {
       final result = await _repository.importRecords(records);
@@ -301,10 +312,12 @@ class BowelLogController extends ChangeNotifier {
 
   Future<bool> clearAllRecords() async {
     if (_isWorking || _isLoading || !_hasLoaded) return false;
+    if (!_checkWriteAccess()) return false;
     _beginAction();
     try {
       await _repository.deleteAll();
       _records = const [];
+      _lastSavedAt = null;
       _deletedRecords.clear();
       _feedbackMessage = '本机记录已清空';
       return true;
@@ -316,6 +329,15 @@ class BowelLogController extends ChangeNotifier {
     }
   }
 
+  bool _checkWriteAccess() {
+    if (_disposed) return false;
+    if (_canWrite()) return true;
+    _feedbackMessage = null;
+    _errorMessage = '应用已锁定或离开前台，请返回后重试。';
+    notifyListeners();
+    return false;
+  }
+
   @override
   void notifyListeners() {
     if (!_disposed) super.notifyListeners();
@@ -324,6 +346,7 @@ class BowelLogController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _lastSavedAt = null;
     _deletedRecords.clear();
     if (onDispose != null) unawaited(onDispose!());
     super.dispose();

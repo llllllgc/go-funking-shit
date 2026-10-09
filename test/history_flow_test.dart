@@ -1,3 +1,4 @@
+import 'support/privacy_fakes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lalema/app.dart';
@@ -57,7 +58,9 @@ void main() {
       );
     controller = BowelLogController(repository, now: () => now);
     await controller.initialize();
-    await tester.pumpWidget(LaLeMaApp(controller: controller));
+    await tester.pumpWidget(
+      LaLeMaApp(controller: controller, privacy: await unlockedPrivacy()),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('历史'));
     await tester.pumpAndSettle();
@@ -104,7 +107,9 @@ void main() {
             midnightStart.add(tester.binding.clock.now().difference(start)),
       );
       await controller.initialize();
-      await tester.pumpWidget(LaLeMaApp(controller: controller));
+      await tester.pumpWidget(
+        LaLeMaApp(controller: controller, privacy: await unlockedPrivacy()),
+      );
       await tester.pump();
       expect(controller.todayRecordCount, 1);
       await tester.pump(const Duration(seconds: 2));
@@ -123,7 +128,9 @@ void main() {
       now: () => current,
     );
     await controller.initialize();
-    await tester.pumpWidget(LaLeMaApp(controller: controller));
+    await tester.pumpWidget(
+      LaLeMaApp(controller: controller, privacy: await unlockedPrivacy()),
+    );
     await tester.pump();
     current = DateTime(2026, 10, 10, 12);
     await tester.pump(const Duration(minutes: 1));

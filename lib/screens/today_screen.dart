@@ -26,6 +26,7 @@ class TodayScreen extends StatelessWidget {
     required this.onEdit,
     required this.onCalendar,
     required this.onKnowledge,
+    required this.onSettings,
     super.key,
   });
 
@@ -35,6 +36,7 @@ class TodayScreen extends StatelessWidget {
   final ValueChanged<String> onEdit;
   final ValueChanged<DateTime> onCalendar;
   final VoidCallback onKnowledge;
+  final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +77,7 @@ class TodayScreen extends StatelessWidget {
                         onEdit: onEdit,
                         onCalendar: onCalendar,
                         onKnowledge: onKnowledge,
+                        onSettings: onSettings,
                       ),
                     ),
                   ),
@@ -96,6 +99,7 @@ class _TodayContent extends StatelessWidget {
     required this.onEdit,
     required this.onCalendar,
     required this.onKnowledge,
+    required this.onSettings,
   });
 
   final BowelLogController controller;
@@ -104,6 +108,7 @@ class _TodayContent extends StatelessWidget {
   final ValueChanged<String> onEdit;
   final ValueChanged<DateTime> onCalendar;
   final VoidCallback onKnowledge;
+  final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +118,20 @@ class _TodayContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const _Wordmark(),
+        Row(
+          children: [
+            const Expanded(child: _Wordmark()),
+            IconButton(
+              key: const Key('today-settings'),
+              tooltip: '设置与隐私',
+              onPressed: onSettings,
+              icon: const Icon(
+                Icons.settings_outlined,
+                color: AppColors.mossInk,
+              ),
+            ),
+          ],
+        ),
         SizedBox(height: compact ? 28 : 56),
         Padding(
           padding: const EdgeInsets.only(left: 10),
