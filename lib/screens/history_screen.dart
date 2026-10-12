@@ -9,11 +9,12 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_theme.dart';
 import '../domain/bowel_record.dart';
 import '../domain/bristol_type.dart';
+import '../domain/history_filter.dart';
 import '../widgets/pressable.dart';
 import '../widgets/calendar_button.dart';
 import '../widgets/ticket_bottom_bar.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({
     required this.controller,
     required this.onToday,
@@ -21,6 +22,8 @@ class HistoryScreen extends StatelessWidget {
     required this.onEdit,
     required this.onCalendar,
     required this.onBackfill,
+    this.initialFilter = const HistoryFilter(),
+    this.onFilterChanged,
     super.key,
   });
 
@@ -30,6 +33,176 @@ class HistoryScreen extends StatelessWidget {
   final ValueChanged<String> onEdit;
   final VoidCallback onCalendar;
   final VoidCallback onBackfill;
+  final HistoryFilter initialFilter;
+  final ValueChanged<HistoryFilter>? onFilterChanged;
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  late HistoryFilter _filter;
+  late final TextEditingController _search;
+
+  BowelLogController get controller => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _filter = widget.initialFilter;
+    _search = TextEditingController(text: _filter.search);
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _setFilter(HistoryFilter value) {
+    setState(() => _filter = value);
+    widget.onFilterChanged?.call(value);
+  }
+
+  void _clearFilter() {
+    _search.clear();
+    _setFilter(const HistoryFilter());
+  }
+
+  Future<void> _pickRange() async {
+    FocusScope.of(context).unfocus();
+    final today = dateOnly(controller.now);
+    final start =
+        _filter.from ?? DateTime(today.year, today.month, today.day - 29);
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(1900),
+      lastDate: today,
+      currentDate: today,
+      initialDateRange: DateTimeRange(
+        start: start.isAfter(today) ? today : start,
+        end: _filter.through ?? today,
+      ),
+      helpText: '筛选记录日期',
+      saveText: '应用',
+    );
+    if (!mounted || picked == null) return;
+    _setFilter(
+      _filter.copyWith(days: 0, from: picked.start, through: picked.end),
+    );
+  }
+
+  Widget _filters(int total, int matches) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      TextField(
+        key: const Key('history-search'),
+        controller: _search,
+        enableIMEPersonalizedLearning: false,
+        autocorrect: false,
+        textInputAction: TextInputAction.search,
+        onChanged: (value) => _setFilter(_filter.copyWith(search: value)),
+        decoration: InputDecoration(
+          labelText: '搜索形态',
+          hintText: '例如：光滑柔软或 01',
+          prefixIcon: const Icon(Icons.search),
+          border: const OutlineInputBorder(),
+          suffixIcon: _search.text.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: '清除搜索文字',
+                  icon: const Icon(Icons.close),
+                  onPressed: () {
+                    _search.clear();
+                    _setFilter(_filter.copyWith(search: ''));
+                  },
+                ),
+        ),
+      ),
+      const SizedBox(height: 12),
+      Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        children: [
+          for (final days in [0, 7, 30])
+            ChoiceChip(
+              label: Text(days == 0 ? '全部' : '近 $days 天'),
+              selected: _filter.days == days && _filter.from == null,
+              onSelected: (_) =>
+                  _setFilter(_filter.copyWith(days: days, clearDates: true)),
+            ),
+          ChoiceChip(
+            key: const Key('history-date-range'),
+            label: const Text('自选日期'),
+            selected: _filter.from != null,
+            onSelected: (_) => _pickRange(),
+          ),
+        ],
+      ),
+      if (_filter.from != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            '${formatHistoryDate(_filter.from!)} — ${formatHistoryDate(_filter.through!)}',
+            key: const Key('history-custom-range'),
+            style: const TextStyle(color: AppColors.inkMuted, fontSize: 13),
+          ),
+        ),
+      ExpansionTile(
+        key: const PageStorageKey('history-type-filters'),
+        tilePadding: EdgeInsets.zero,
+        title: const Text('按形态筛选', style: TextStyle(fontSize: 14)),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                ChoiceChip(
+                  label: const Text('全部形态'),
+                  selected: _filter.bristolType == null,
+                  onSelected: (_) =>
+                      _setFilter(_filter.copyWith(clearType: true)),
+                ),
+                for (final type in bristolTypes)
+                  ChoiceChip(
+                    key: ValueKey('history-type-${type.number}'),
+                    label: Text('${type.code} ${type.label}'),
+                    selected: _filter.bristolType == type.number,
+                    onSelected: (selected) => _setFilter(
+                      _filter.copyWith(
+                        bristolType: type.number,
+                        clearType: !selected,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+      Wrap(
+        spacing: 12,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            _filter.isActive ? '找到 $matches 条 / 全部 $total 条' : '共 $total 笔记录',
+            key: const Key('history-result-count'),
+            style: const TextStyle(color: AppColors.inkMuted, fontSize: 14),
+          ),
+          if (_filter.isActive)
+            TextButton(
+              key: const Key('history-reset'),
+              onPressed: _clearFilter,
+              child: const Text('清除筛选'),
+            ),
+        ],
+      ),
+      const SizedBox(height: 16),
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +213,11 @@ class HistoryScreen extends StatelessWidget {
         child: AnimatedBuilder(
           animation: controller,
           builder: (context, _) {
+            final records = controller.records;
+            final matches = _filter.apply(
+              records,
+              today: controller.currentDate,
+            );
             return Stack(
               children: <Widget>[
                 Positioned.fill(
@@ -55,13 +233,13 @@ class HistoryScreen extends StatelessWidget {
                               style: pixelStyle(size: 30, height: 38 / 30),
                             ),
                           ),
-                          CalendarButton(onPressed: onCalendar),
+                          CalendarButton(onPressed: widget.onCalendar),
                           Pressable(
                             key: const Key('history-backfill'),
                             semanticLabel: '补记过去的记录',
                             enabled:
                                 !controller.isWorking && !controller.isLoading,
-                            onPressed: onBackfill,
+                            onPressed: widget.onBackfill,
                             child: const Padding(
                               padding: EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -78,22 +256,11 @@ class HistoryScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      Padding(
-                        padding: EdgeInsets.only(
-                          top: 8,
-                          bottom: controller.errorMessage == null ? 28 : 8,
-                        ),
-                        child: Text(
-                          controller.isLoading
-                              ? '正在读取'
-                              : '共 ${controller.records.length} 笔记录',
-                          style: const TextStyle(
-                            color: AppColors.inkMuted,
-                            fontSize: 16,
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
+                      const SizedBox(height: 8),
+                      if (controller.isLoading)
+                        const Text('正在读取')
+                      else
+                        _filters(records.length, matches.length),
                       if (controller.errorMessage != null)
                         Semantics(
                           liveRegion: true,
@@ -111,17 +278,22 @@ class HistoryScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                      if (!controller.isLoading && controller.records.isEmpty)
+                      if (!controller.isLoading && records.isEmpty)
                         const _EmptyHistory(),
-                      for (final group in _groupRecords(
-                        controller.records,
-                      )) ...[
+                      if (!controller.isLoading &&
+                          records.isNotEmpty &&
+                          matches.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 32),
+                          child: Center(child: Text('没有符合条件的记录')),
+                        ),
+                      for (final group in _groupRecords(matches)) ...[
                         _HistoryDayHeader(group: group),
                         for (final record in group.records)
                           _HistoryRecordRow(
                             record: record,
                             enabled: !controller.isWorking,
-                            onEdit: () => onEdit(record.recordId),
+                            onEdit: () => widget.onEdit(record.recordId),
                             onDelete: () => _confirmDelete(context, record),
                           ),
                         const SizedBox(height: 24),
@@ -133,8 +305,8 @@ class HistoryScreen extends StatelessWidget {
                   alignment: Alignment.bottomCenter,
                   child: TicketBottomBar(
                     selectedTab: TicketTab.history,
-                    onToday: onToday,
-                    onRecord: onRecord,
+                    onToday: widget.onToday,
+                    onRecord: widget.onRecord,
                     onHistory: () {},
                     recordEnabled: !controller.isWorking,
                   ),

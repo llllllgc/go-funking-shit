@@ -33,6 +33,7 @@ class BowelLogController extends ChangeNotifier {
   List<BowelRecord> _records = const <BowelRecord>[];
   DateTime _currentDate = dateOnly(DateTime.now());
   bool _isLoading = true;
+  bool _hasLoaded = false;
   bool _isWorking = false;
   RecordFeedback? _feedback;
   BowelRecord? _deletedRecord;
@@ -43,6 +44,7 @@ class BowelLogController extends ChangeNotifier {
   DateTime get currentDate => _currentDate;
   DateTime get now => _now();
   bool get isLoading => _isLoading;
+  bool get hasLoaded => _hasLoaded;
   bool get isWorking => _isWorking;
   RecordFeedback? get feedback => _feedback;
   String? get feedbackMessage => _feedback?.message;
@@ -83,12 +85,19 @@ class BowelLogController extends ChangeNotifier {
     return null;
   }
 
-  Future<void> initialize() async {
+  Future<bool> initialize() async {
+    if (_isWorking) return _hasLoaded;
     _currentDate = dateOnly(_now());
+    _isLoading = true;
+    _errorMessage = null;
     try {
       await _reload();
+      _hasLoaded = true;
+      return true;
     } catch (_) {
-      _errorMessage = '没有读取成功，请重新打开应用';
+      _hasLoaded = false;
+      _errorMessage = '没有读取成功，请重试';
+      return false;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -116,7 +125,13 @@ class BowelLogController extends ChangeNotifier {
     String? editRecordId,
     DateTime? recordedAt,
   }) async {
-    if (_isWorking || bristolType < 1 || bristolType > 7) return false;
+    if (_isWorking ||
+        _isLoading ||
+        !_hasLoaded ||
+        bristolType < 1 ||
+        bristolType > 7) {
+      return false;
+    }
     final actionTime = _now();
     if (recordedAt != null &&
         (recordedAt.isAfter(actionTime) ||
@@ -188,7 +203,9 @@ class BowelLogController extends ChangeNotifier {
     required String successMessage,
     required String failureMessage,
   }) async {
-    if (_isWorking || recordId.trim().isEmpty) return;
+    if (_isWorking || _isLoading || !_hasLoaded || recordId.trim().isEmpty) {
+      return;
+    }
     final deleted = record(recordId);
     if (deleted == null) return;
     _beginAction();
@@ -213,7 +230,13 @@ class BowelLogController extends ChangeNotifier {
 
   Future<void> restoreDeletedRecord(String recordId) async {
     final deleted = _deletedRecord;
-    if (_isWorking || deleted == null || deleted.recordId != recordId) return;
+    if (_isWorking ||
+        _isLoading ||
+        !_hasLoaded ||
+        deleted == null ||
+        deleted.recordId != recordId) {
+      return;
+    }
     _beginAction();
     try {
       await _repository.restore(deleted);

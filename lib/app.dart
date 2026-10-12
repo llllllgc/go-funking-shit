@@ -7,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'application/bowel_log_controller.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
+import 'domain/history_filter.dart';
 import 'screens/history_screen.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/knowledge_screen.dart';
@@ -46,6 +47,7 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
   int _page = 0;
   Timer? _dateTimer;
   RecordFeedback? _lastFeedback;
+  HistoryFilter _historyFilter = const HistoryFilter();
 
   @override
   void initState() {
@@ -220,6 +222,8 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
       onEdit: (id) => _openRecord(recordId: id),
       onCalendar: () => _openCalendar(widget.controller.currentDate),
       onBackfill: _backfillYesterday,
+      initialFilter: _historyFilter,
+      onFilterChanged: (filter) => _historyFilter = filter,
     );
   }
 }

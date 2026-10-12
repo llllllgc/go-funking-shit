@@ -12,6 +12,8 @@ class SqliteBowelRecordRepository implements BowelRecordRepository {
   final Database _database;
   final Uuid _uuid;
 
+  Future<void> close() => _database.close();
+
   static Future<SqliteBowelRecordRepository> open() async {
     final databasePath = path.join(await getDatabasesPath(), 'lalema.db');
     final database = await openDatabase(

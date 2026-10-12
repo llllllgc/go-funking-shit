@@ -52,7 +52,10 @@ class _KnowledgeScreenState extends State<KnowledgeScreen> {
                   ),
                 ),
                 Expanded(
-                  child: Text('小纸条', style: pixelStyle(size: 28, height: 36 / 28)),
+                  child: Text(
+                    '小纸条',
+                    style: pixelStyle(size: 28, height: 36 / 28),
+                  ),
                 ),
                 SvgPicture.asset(
                   'assets/icons/ic_ticket_note.svg',
@@ -139,7 +142,14 @@ class _FeaturedNote extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Text('今天这张', style: pixelStyle(size: 16, height: 22 / 16, color: AppColors.mossInk)),
+              Text(
+                '今天这张',
+                style: pixelStyle(
+                  size: 16,
+                  height: 22 / 16,
+                  color: AppColors.mossInk,
+                ),
+              ),
               const Spacer(),
               Text(
                 basedOnRecord ? '根据你的记录' : '从基础知识开始',
@@ -160,7 +170,11 @@ class _FeaturedNote extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             tip.summary,
-            style: const TextStyle(color: AppColors.ink, fontSize: 14, height: 21 / 14),
+            style: const TextStyle(
+              color: AppColors.ink,
+              fontSize: 14,
+              height: 21 / 14,
+            ),
           ),
         ],
       ),
@@ -248,14 +262,21 @@ class _KnowledgeCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Text(
                   expanded ? '收起' : '展开',
-                  style: const TextStyle(color: AppColors.mossInk, fontSize: 12),
+                  style: const TextStyle(
+                    color: AppColors.mossInk,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Text(
               tip.summary,
-              style: const TextStyle(color: AppColors.inkMuted, fontSize: 13, height: 20 / 13),
+              style: const TextStyle(
+                color: AppColors.inkMuted,
+                fontSize: 13,
+                height: 20 / 13,
+              ),
             ),
             if (expanded) ...[
               const SizedBox(height: 10),
@@ -266,12 +287,20 @@ class _KnowledgeCard extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Text(
                     '· $detail',
-                    style: const TextStyle(color: AppColors.ink, fontSize: 13, height: 20 / 13),
+                    style: const TextStyle(
+                      color: AppColors.ink,
+                      fontSize: 13,
+                      height: 20 / 13,
+                    ),
                   ),
                 ),
               Text(
                 tip.source,
-                style: const TextStyle(color: AppColors.inkMuted, fontSize: 11, height: 17 / 11),
+                style: const TextStyle(
+                  color: AppColors.inkMuted,
+                  fontSize: 11,
+                  height: 17 / 11,
+                ),
               ),
             ],
           ],
@@ -294,7 +323,11 @@ class _KnowledgeFooter extends StatelessWidget {
       ),
       child: const Text(
         '这里是生活知识，不是诊断。出现鲜血、黑色柏油样便、明显腹痛、头晕或脱水迹象时，请及时寻求医疗帮助。',
-        style: TextStyle(color: AppColors.danger, fontSize: 12, height: 18 / 12),
+        style: TextStyle(
+          color: AppColors.danger,
+          fontSize: 12,
+          height: 18 / 12,
+        ),
       ),
     );
   }

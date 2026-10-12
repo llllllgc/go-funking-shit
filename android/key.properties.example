@@ -1,0 +1,6 @@
+# Copy to key.properties (ignored by Git) and fill it locally.
+# Use an absolute keystore path. Never commit keys or passwords.
+storeFile=/absolute/path/to/upload-keystore.jks
+storePassword=REPLACE_WITH_LOCAL_VALUE
+keyAlias=upload
+keyPassword=REPLACE_WITH_LOCAL_VALUE
