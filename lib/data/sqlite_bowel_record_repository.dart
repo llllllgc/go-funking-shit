@@ -101,6 +101,19 @@ class SqliteBowelRecordRepository implements BowelRecordRepository {
     if (changed != 1) throw StateError('Record no longer exists');
   }
 
+  @override
+  Future<void> restore(BowelRecord record) async {
+    if (record.recordId.trim().isEmpty) {
+      throw ArgumentError('recordId must not be blank');
+    }
+    _requireValidType(record.bristolType);
+    await _database.insert(
+      _table,
+      record.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.abort,
+    );
+  }
+
   void _requireValidType(int value) {
     if (value < 1 || value > 7) {
       throw ArgumentError.value(

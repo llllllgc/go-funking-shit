@@ -12,6 +12,7 @@ import 'screens/calendar_screen.dart';
 import 'screens/knowledge_screen.dart';
 import 'screens/record_screen.dart';
 import 'screens/today_screen.dart';
+import 'widgets/ticket_bottom_bar.dart';
 
 class LaLeMaApp extends StatelessWidget {
   const LaLeMaApp({required this.controller, super.key});
@@ -44,11 +45,13 @@ class LaLeMaShell extends StatefulWidget {
 class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
   int _page = 0;
   Timer? _dateTimer;
+  RecordFeedback? _lastFeedback;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.controller.addListener(_showRecordFeedback);
     _dateTimer = Timer.periodic(
       const Duration(minutes: 1),
       (_) => widget.controller.refreshDate(),
@@ -59,7 +62,83 @@ class _LaLeMaShellState extends State<LaLeMaShell> with WidgetsBindingObserver {
   void dispose() {
     _dateTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
+    widget.controller.removeListener(_showRecordFeedback);
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant LaLeMaShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_showRecordFeedback);
+      widget.controller.addListener(_showRecordFeedback);
+      _lastFeedback = null;
+    }
+  }
+
+  void _showRecordFeedback() {
+    final controller = widget.controller;
+    final feedback = controller.feedback;
+    if (feedback == null || identical(feedback, _lastFeedback)) return;
+    _lastFeedback = feedback;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !identical(controller.feedback, feedback)) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.removeCurrentSnackBar();
+      messenger
+          .showSnackBar(
+            SnackBar(
+              duration: Duration(seconds: feedback.action == null ? 3 : 8),
+              persist:
+                  feedback.action != null &&
+                  MediaQuery.accessibleNavigationOf(context),
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.fromLTRB(
+                16,
+                0,
+                16,
+                ticketBottomBarHeight + 12,
+              ),
+              elevation: 0,
+              backgroundColor: AppColors.paperRaised,
+              shape: const RoundedRectangleBorder(
+                side: BorderSide(color: AppColors.rule),
+              ),
+              content: Text(
+                feedback.message,
+                style: TextStyle(
+                  color: controller.errorMessage == null
+                      ? AppColors.ink
+                      : AppColors.danger,
+                  fontSize: 14,
+                ),
+              ),
+              action: feedback.action == null
+                  ? null
+                  : SnackBarAction(
+                      key: const Key('record-feedback-action'),
+                      label: feedback.action == RecordFeedbackAction.undo
+                          ? '撤销'
+                          : '恢复',
+                      textColor: AppColors.mossInk,
+                      onPressed: () {
+                        final id = feedback.recordId!;
+                        if (feedback.action == RecordFeedbackAction.undo) {
+                          controller.undo(id);
+                        } else {
+                          controller.restoreDeletedRecord(id);
+                        }
+                      },
+                    ),
+            ),
+          )
+          .closed
+          .then((reason) {
+            if (mounted && reason != SnackBarClosedReason.action) {
+              controller.dismissFeedback(feedback);
+            }
+          });
+    });
   }
 
   @override

@@ -91,6 +91,9 @@ void main() {
 }
 
 class _ResponsiveRepository implements BowelRecordRepository {
+  @override
+  Future<void> restore(BowelRecord record) => throw UnimplementedError();
+
   _ResponsiveRepository(DateTime now)
     : _records = List<BowelRecord>.generate(
         12,

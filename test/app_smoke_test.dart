@@ -15,7 +15,8 @@ void main() {
     await tester.pumpWidget(LaLeMaApp(controller: controller));
     await tester.pumpAndSettle();
 
-    expect(find.text('今天'), findsWidgets);
+    expect(find.text('今天拉完了'), findsOneWidget);
+    expect(find.text('今天暂无记录'), findsOneWidget);
     expect(find.text('点一下，记一笔'), findsOneWidget);
     expect(find.text('记录'), findsOneWidget);
 
@@ -26,6 +27,9 @@ void main() {
 }
 
 class _EmptyRepository implements BowelRecordRepository {
+  @override
+  Future<void> restore(BowelRecord record) => throw UnimplementedError();
+
   @override
   Future<BowelRecord> create(int bristolType, {DateTime? recordedAt}) =>
       throw UnimplementedError();

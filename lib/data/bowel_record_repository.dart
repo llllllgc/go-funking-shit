@@ -12,4 +12,7 @@ abstract interface class BowelRecordRepository {
   });
 
   Future<void> delete(String recordId);
+
+  /// Reinstates a deleted record with its original identity and timestamps.
+  Future<void> restore(BowelRecord record);
 }

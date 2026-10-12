@@ -120,7 +120,7 @@ class _TodayContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final latest = controller.latestTodayRecord;
-    final status = controller.errorMessage ?? controller.feedbackMessage;
+    final status = controller.errorMessage;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -129,7 +129,7 @@ class _TodayContent extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(left: 10),
           child: Text(
-            '今天',
+            '今天拉完了',
             style: pixelStyle(size: compact ? 28 : 34, height: 1.18),
           ),
         ),
@@ -223,11 +223,6 @@ class _TodayContent extends StatelessWidget {
               ),
             ),
           ),
-        SizedBox(height: compact ? 20 : 28),
-        KnowledgePreviewCard(
-          tip: KnowledgeBase.featuredFor(latest?.bristolType),
-          onPressed: onKnowledge,
-        ),
         SizedBox(height: compact ? 24 : 40),
         const Divider(height: 1, thickness: 1, color: AppColors.rule),
         SizedBox(height: compact ? 20 : 32),
@@ -235,6 +230,11 @@ class _TodayContent extends StatelessWidget {
           days: controller.lastSevenDays,
           today: controller.currentDate,
           onCalendar: onCalendar,
+        ),
+        SizedBox(height: compact ? 16 : 20),
+        KnowledgePreviewCard(
+          tip: KnowledgeBase.featuredFor(latest?.bristolType),
+          onPressed: onKnowledge,
         ),
         SizedBox(height: compact ? 24 : 36),
         const SizedBox(
@@ -295,7 +295,7 @@ class _LatestRecordLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final type = record == null ? null : bristolTypeFor(record!.bristolType);
     final text = record == null || type == null
-        ? '最近一次　—'
+        ? '今天暂无记录'
         : stacked
         ? '最近一次\n${formatTime(record!.recordedAt)} · ${type.code}　${type.label}'
         : '最近一次　${formatTime(record!.recordedAt)} · ${type.code}　${type.label}';
@@ -383,7 +383,7 @@ class _SevenDayTicket extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  '共 $total 次',
+                  '已记 $total 次',
                   style: const TextStyle(
                     color: AppColors.ink,
                     fontSize: 16,
@@ -429,7 +429,8 @@ class _DayMark extends StatelessWidget {
     final label = weekdayLabels[day.date.weekday - 1];
     return Semantics(
       label:
-          '${formatHistoryDate(day.date)}${isToday ? '，今天' : ''}，${day.recordCount} 次记录',
+          '${formatHistoryDate(day.date)}${isToday ? '，今天' : ''}，'
+          '${day.hasRecord ? '已记录 ${day.recordCount} 次' : '暂无记录'}',
       child: ExcludeSemantics(
         child: Column(
           children: <Widget>[

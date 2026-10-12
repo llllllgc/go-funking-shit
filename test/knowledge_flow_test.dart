@@ -2,11 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lalema/app.dart';
 import 'package:lalema/application/bowel_log_controller.dart';
+import 'package:lalema/data/knowledge_base.dart';
 import 'package:lalema/domain/bowel_record.dart';
 
 import 'support/memory_repository.dart';
 
 void main() {
+  test(
+    'watery records feature hydration guidance without changing hard-stool guidance',
+    () {
+      expect(KnowledgeBase.featuredFor(7).id, 'loose-hydration');
+      expect(KnowledgeBase.featuredFor(6).id, 'loose-hydration');
+      expect(KnowledgeBase.featuredFor(2).id, 'fiber-water');
+      expect(KnowledgeBase.featuredFor(4).id, 'bristol-middle');
+    },
+  );
+
   testWidgets('home paper opens the offline knowledge base', (tester) async {
     final now = DateTime(2026, 9, 19, 14, 32);
     final repository = MemoryRepository(now)

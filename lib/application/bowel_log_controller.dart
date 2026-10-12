@@ -4,6 +4,16 @@ import '../core/formatters.dart';
 import '../data/bowel_record_repository.dart';
 import '../domain/bowel_record.dart';
 
+enum RecordFeedbackAction { undo, restore }
+
+class RecordFeedback {
+  const RecordFeedback(this.message, {this.action, this.recordId});
+
+  final String message;
+  final RecordFeedbackAction? action;
+  final String? recordId;
+}
+
 class LogDaySummary {
   const LogDaySummary({required this.date, required this.recordCount});
 
@@ -24,7 +34,9 @@ class BowelLogController extends ChangeNotifier {
   DateTime _currentDate = dateOnly(DateTime.now());
   bool _isLoading = true;
   bool _isWorking = false;
-  String? _feedbackMessage;
+  RecordFeedback? _feedback;
+  BowelRecord? _deletedRecord;
+  RecordFeedback? _recoveryFeedback;
   String? _errorMessage;
 
   List<BowelRecord> get records => List<BowelRecord>.unmodifiable(_records);
@@ -32,7 +44,8 @@ class BowelLogController extends ChangeNotifier {
   DateTime get now => _now();
   bool get isLoading => _isLoading;
   bool get isWorking => _isWorking;
-  String? get feedbackMessage => _feedbackMessage;
+  RecordFeedback? get feedback => _feedback;
+  String? get feedbackMessage => _feedback?.message;
   String? get errorMessage => _errorMessage;
 
   List<BowelRecord> get todayRecords => _records
@@ -90,10 +103,10 @@ class BowelLogController extends ChangeNotifier {
   }
 
   void clearFeedback() {
-    if (_isWorking || (_feedbackMessage == null && _errorMessage == null)) {
+    if (_isWorking || (_feedback == null && _errorMessage == null)) {
       return;
     }
-    _feedbackMessage = null;
+    _feedback = null;
     _errorMessage = null;
     notifyListeners();
   }
@@ -108,7 +121,7 @@ class BowelLogController extends ChangeNotifier {
     if (recordedAt != null &&
         (recordedAt.isAfter(actionTime) ||
             recordedAt.isBefore(DateTime(1900)))) {
-      _feedbackMessage = null;
+      _feedback = null;
       _errorMessage = '请选择已经发生的日期和时间';
       notifyListeners();
       return false;
@@ -144,11 +157,17 @@ class BowelLogController extends ChangeNotifier {
       ];
       _sortRecords();
       _currentDate = dateOnly(_now());
-      _feedbackMessage = editRecordId != null
-          ? '已修改'
-          : recordedAt == null
-          ? '已记录'
-          : '已补记到 ${recordedAt.month}月${recordedAt.day}日';
+      _deletedRecord = null;
+      _recoveryFeedback = null;
+      _feedback = RecordFeedback(
+        editRecordId != null
+            ? '已修改 · ${formatTime(saved.recordedAt)}'
+            : recordedAt == null
+            ? '已记录 · ${formatTime(saved.recordedAt)}'
+            : '已补记 · ${recordedAt.month}月${recordedAt.day}日 ${formatTime(saved.recordedAt)}',
+        action: editRecordId == null ? RecordFeedbackAction.undo : null,
+        recordId: saved.recordId,
+      );
       return true;
     } catch (_) {
       _errorMessage = '没有保存成功，请再试一次';
@@ -170,15 +189,61 @@ class BowelLogController extends ChangeNotifier {
     required String failureMessage,
   }) async {
     if (_isWorking || recordId.trim().isEmpty) return;
+    final deleted = record(recordId);
+    if (deleted == null) return;
     _beginAction();
     try {
       await _repository.delete(recordId);
-      await _reload();
-      _feedbackMessage = successMessage;
+      _records = _records
+          .where((record) => record.recordId != recordId)
+          .toList(growable: false);
+      _deletedRecord = deleted;
+      _feedback = RecordFeedback(
+        successMessage,
+        action: RecordFeedbackAction.restore,
+        recordId: recordId,
+      );
+      _recoveryFeedback = _feedback;
     } catch (_) {
       _errorMessage = failureMessage;
     } finally {
       _endAction();
+    }
+  }
+
+  Future<void> restoreDeletedRecord(String recordId) async {
+    final deleted = _deletedRecord;
+    if (_isWorking || deleted == null || deleted.recordId != recordId) return;
+    _beginAction();
+    try {
+      await _repository.restore(deleted);
+      _records = [..._records, deleted];
+      _sortRecords();
+      _deletedRecord = null;
+      _recoveryFeedback = null;
+      _currentDate = dateOnly(_now());
+      _feedback = RecordFeedback('已恢复 · ${formatTime(deleted.recordedAt)}');
+    } catch (_) {
+      _errorMessage = '没有恢复成功，请再试一次';
+      _feedback = RecordFeedback(
+        _errorMessage!,
+        action: RecordFeedbackAction.restore,
+        recordId: recordId,
+      );
+      _recoveryFeedback = _feedback;
+    } finally {
+      _endAction();
+    }
+  }
+
+  void dismissFeedback(RecordFeedback feedback) {
+    if (identical(_recoveryFeedback, feedback)) {
+      _deletedRecord = null;
+      _recoveryFeedback = null;
+    }
+    if (identical(_feedback, feedback)) {
+      _feedback = null;
+      notifyListeners();
     }
   }
 
@@ -197,7 +262,7 @@ class BowelLogController extends ChangeNotifier {
 
   void _beginAction() {
     _isWorking = true;
-    _feedbackMessage = null;
+    _feedback = null;
     _errorMessage = null;
     notifyListeners();
   }

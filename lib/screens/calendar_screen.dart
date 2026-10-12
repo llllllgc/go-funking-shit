@@ -378,8 +378,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       ),
                                     ],
                                   ),
-                                  if (controller.errorMessage != null ||
-                                      controller.feedbackMessage != null)
+                                  if (controller.errorMessage != null)
                                     Semantics(
                                       liveRegion: true,
                                       child: Padding(
@@ -387,8 +386,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                           bottom: 8,
                                         ),
                                         child: Text(
-                                          controller.errorMessage ??
-                                              controller.feedbackMessage!,
+                                          controller.errorMessage!,
                                           style: TextStyle(
                                             fontSize: 12,
                                             color:
@@ -417,7 +415,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                           ),
                                           const SizedBox(height: 8),
                                           const Text(
-                                            '忘记记下？可以在这里补一笔。',
+                                            '暂无记录不代表没有排便；漏记可以补一笔。',
                                             style: TextStyle(
                                               fontSize: 12,
                                               color: AppColors.inkMuted,

@@ -6,6 +6,8 @@ import 'package:lalema/application/bowel_log_controller.dart';
 import 'package:lalema/data/bowel_record_repository.dart';
 import 'package:lalema/domain/bowel_record.dart';
 
+import '../test/support/memory_repository.dart';
+
 void main() {
   setUpAll(() async {
     // Widget tests use placeholder glyphs unless fonts are loaded explicitly.
@@ -108,9 +110,68 @@ void main() {
       matchesGoldenFile('captures/backfill_375.png'),
     );
   });
+  testWidgets('capture empty state and reversible recording feedback', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(375, 812);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final now = DateTime(2026, 9, 19, 14, 32);
+    final controller = BowelLogController(
+      MemoryRepository(now),
+      now: () => now,
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+    const captureKey = Key('feedback-capture');
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: captureKey,
+        child: LaLeMaApp(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      final context = tester.element(find.byKey(captureKey));
+      await Future.wait([
+        precacheImage(
+          const AssetImage('assets/images/toilet_paper_spirit_normal.png'),
+          context,
+        ),
+        precacheImage(
+          const AssetImage('assets/images/toilet_paper_spirit_happy.png'),
+          context,
+        ),
+        precacheImage(const AssetImage('assets/images/toilet.png'), context),
+      ]);
+    });
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(captureKey),
+      matchesGoldenFile('captures/home_empty_375.png'),
+    );
+    await tester.tap(find.text('记录'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('光滑柔软'));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(captureKey),
+      matchesGoldenFile('captures/record_feedback_375.png'),
+    );
+    await tester.tap(find.byKey(const Key('record-feedback-action')));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byKey(captureKey),
+      matchesGoldenFile('captures/recovery_feedback_375.png'),
+    );
+  });
 }
 
 class _CaptureRepository implements BowelRecordRepository {
+  @override
+  Future<void> restore(BowelRecord record) => throw UnimplementedError();
+
   _CaptureRepository(DateTime now)
     : _records = <BowelRecord>[
         _record('record-1', 4, now),

@@ -15,12 +15,12 @@ void main() {
     expect(await controller.saveType(4), isTrue);
     expect(controller.todayRecordCount, 1);
     expect(controller.latestTodayRecord?.bristolType, 4);
-    expect(controller.feedbackMessage, '已记录');
+    expect(controller.feedbackMessage, '已记录 · 12:00');
 
     final recordId = controller.latestTodayRecord!.recordId;
     expect(await controller.saveType(7, editRecordId: recordId), isTrue);
     expect(controller.latestTodayRecord?.bristolType, 7);
-    expect(controller.feedbackMessage, '已修改');
+    expect(controller.feedbackMessage, '已修改 · 12:00');
 
     await controller.deleteRecord(recordId);
     expect(controller.todayRecordCount, 0);
@@ -74,6 +74,11 @@ class _MemoryRepository implements BowelRecordRepository {
   @override
   Future<void> delete(String recordId) async {
     records.removeWhere((record) => record.recordId == recordId);
+  }
+
+  @override
+  Future<void> restore(BowelRecord record) async {
+    records.add(record);
   }
 
   @override

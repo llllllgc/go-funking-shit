@@ -81,11 +81,7 @@ class HistoryScreen extends StatelessWidget {
                       Padding(
                         padding: EdgeInsets.only(
                           top: 8,
-                          bottom:
-                              controller.feedbackMessage == null &&
-                                  controller.errorMessage == null
-                              ? 28
-                              : 8,
+                          bottom: controller.errorMessage == null ? 28 : 8,
                         ),
                         child: Text(
                           controller.isLoading
@@ -98,15 +94,13 @@ class HistoryScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (controller.errorMessage != null ||
-                          controller.feedbackMessage != null)
+                      if (controller.errorMessage != null)
                         Semantics(
                           liveRegion: true,
                           child: Padding(
                             padding: const EdgeInsets.only(bottom: 20),
                             child: Text(
-                              controller.errorMessage ??
-                                  controller.feedbackMessage!,
+                              controller.errorMessage!,
                               style: TextStyle(
                                 color: controller.errorMessage != null
                                     ? AppColors.danger
@@ -167,7 +161,7 @@ class HistoryScreen extends StatelessWidget {
           actionsPadding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
           title: Text('删除这条记录？', style: pixelStyle(size: 20, height: 26 / 20)),
           content: Text(
-            '${formatDeleteDate(record.recordedAt)} · ${type.code} ${type.label}\n删除后无法恢复。',
+            '${formatDeleteDate(record.recordedAt)} · ${type.code} ${type.label}\n删除后可在短暂提示中恢复。',
             style: const TextStyle(
               color: AppColors.inkMuted,
               fontSize: 14,
