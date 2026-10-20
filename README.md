@@ -61,3 +61,9 @@ flutter build apk --debug
 GitHub Actions 还会检查锁文件依赖、Dart 格式、Flutter 分析与测试、Android Debug 和 iOS 模拟器构建，并验证无正式签名时 Android Release 被拒绝。
 
 当前版本：`1.2.0+3`。交互草图位于 `tool/prototypes/`，用于设计留档，不会打包进 App。真实 Flutter 页面截图位于 `tool/captures/`，使用虚构演示记录。
+
+## 开源许可
+
+版权所有 © 2026 llllllgc 及贡献者。除下述单独授权的第三方内容外，本仓库的源码、文档和自有视觉素材采用 [GNU GPL v3.0 only](LICENSE) 许可。分发修改后的项目时，请遵守该许可证的条款。
+
+`assets/fonts/zpix.ttf` 是 SolidZORO 的 Zpix 字体，不属于本项目的 GPL 授权范围；使用和再分发应遵守[字体作者的授权说明](https://github.com/SolidZORO/zpix-pixel-font/blob/main/README.md)。Flutter SDK 及第三方依赖遵循各自的许可证。
